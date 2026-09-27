@@ -8,19 +8,24 @@ import ChartTooltip from './ChartTooltip'
 // Horizontal bars so Thai branch names stay readable; data arrives sorted largest first.
 // Value labels carry baht + share of total on wide screens, baht only on phones.
 // Hovering a bar fades the others (focus + context). `show` = the panel has scrolled into
-// view; until then we keep an empty box of the same height so bars "grow" when you arrive.
-function BranchSalesChart({ data, colors, show = true }) {
+// view. Clicking a bar calls onSelect(branch) to filter the dashboard (click again to clear);
+// the selected branch stays highlighted when the mouse is elsewhere. Until in view we keep an empty box of the same height so bars "grow" when you arrive.
+function BranchSalesChart({ data, colors, show = true, selected = null, onSelect }) {
   const isMobile = useIsMobile()
   const reduced = useReducedMotion()
   const [activeIndex, setActiveIndex] = useState(null)
   const shareByBranch = Object.fromEntries(data.map((d) => [d.branch, d.share]))
   const height = Math.max(200, data.length * (isMobile ? 44 : 54))
 
+  // Which bar to spotlight: the hovered one, else the selected branch.
+  const selectedIndex = data.findIndex((d) => d.branch === selected)
+  const focusIndex = activeIndex ?? (selectedIndex >= 0 ? selectedIndex : null)
+
   if (!show) return <div style={{ height }} />
 
   const renderLabel = ({ x, y, width, height, value, index }) => {
     const branch = data[index].branch
-    const dim = activeIndex != null && activeIndex !== index
+    const dim = focusIndex != null && focusIndex !== index
     return (
       <text
         x={x + width + 10}
@@ -30,7 +35,7 @@ function BranchSalesChart({ data, colors, show = true }) {
         className="bar-cell"
         style={{ opacity: dim ? 0.35 : 1 }}
       >
-        <tspan fill={colors.ink} fontWeight={activeIndex === index ? 600 : 400} style={{ fontVariantNumeric: 'tabular-nums' }}>
+        <tspan fill={colors.ink} fontWeight={focusIndex === index ? 600 : 400} style={{ fontVariantNumeric: 'tabular-nums' }}>
           {formatBaht(value)}
         </tspan>
         {!isMobile && <tspan fill={colors.muted}>{`  ·  ${formatPercent(shareByBranch[branch])}`}</tspan>}
@@ -50,6 +55,12 @@ function BranchSalesChart({ data, colors, show = true }) {
           setActiveIndex(i == null ? null : Number(i))
         }}
         onMouseLeave={() => setActiveIndex(null)}
+        onClick={(state) => {
+          const i = state?.activeTooltipIndex
+          if (i == null || !onSelect) return
+          const branch = data[Number(i)].branch
+          onSelect(branch === selected ? null : branch)
+        }}
       >
         <defs>
           {/* Bars get darker toward their tip — reads like a coffee "pour". */}
@@ -88,7 +99,7 @@ function BranchSalesChart({ data, colors, show = true }) {
               key={d.branch}
               className="bar-cell"
               fill="url(#barFill)"
-              style={{ opacity: activeIndex != null && activeIndex !== i ? 0.35 : 1 }}
+              style={{ opacity: focusIndex != null && focusIndex !== i ? 0.35 : 1, cursor: onSelect ? 'pointer' : undefined }}
             />
           ))}
           <LabelList dataKey="sales" content={renderLabel} />

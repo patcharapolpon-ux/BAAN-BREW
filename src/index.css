@@ -22,6 +22,12 @@
   --accent-soft: #d0ad8f;
   --grid: #efe9e1;
   --shadow: 0 1px 2px rgb(28 24 20 / 0.04), 0 8px 24px -12px rgb(28 24 20 / 0.12);
+  /* Categorical colors for donut slices — coffee family but far enough apart to tell apart. */
+  --cat-1: #8a4b1c;
+  --cat-2: #d08c3c;
+  --cat-3: #5b7a55;
+  --cat-4: #b46a55;
+  --cat-5: #a8977c;
 }
 
 :root[data-theme="dark"] {
@@ -37,6 +43,11 @@
   --accent-soft: #5e4633;
   --grid: #231f1b;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.6);
+  --cat-1: #d9955a;
+  --cat-2: #efc27a;
+  --cat-3: #8fb385;
+  --cat-4: #d88f78;
+  --cat-5: #9c8f7d;
 }
 
 @theme inline {
@@ -254,6 +265,73 @@ body {
 .bar-cell {
   transition: opacity var(--dur) var(--ease-out);
 }
+
+/* ─── Heatmap cells: diagonal wave entrance, pop on hover ───────────────── */
+/* Transitions (not keyframes) so hover/dim can interrupt smoothly without replaying the entrance.
+   --d is each cell's wave delay; once the wave is done, .is-settled drops the delay so hover is instant. */
+.heat-cell {
+  opacity: 0;
+  transform: scale(0.4);
+  transition:
+    transform 500ms var(--ease-spring) var(--d, 0ms),
+    opacity 500ms var(--ease-out) var(--d, 0ms),
+    background-color 500ms var(--ease-out),
+    box-shadow 250ms var(--ease-out);
+}
+.heat-cell.is-visible { opacity: 1; transform: none; }
+.heat-cell.is-settled { transition-delay: 0ms; transition-duration: 250ms; }
+.heat-cell.is-dim { opacity: 0.4; }
+.heat-cell.is-hover {
+  position: relative;
+  z-index: 1;
+  transform: scale(1.35);
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--accent), 0 6px 16px -4px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* ─── Sparkline: line draws itself left → right, wash fades in after ──────── */
+.spark-line {
+  stroke-dasharray: 1;
+  animation: draw 1.2s var(--ease-out) 300ms both;
+}
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.spark-area {
+  animation: fade-in 600ms var(--ease-out) 1s both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+/* ─── Sticky header turns into frosted glass once you scroll ──────────────── */
+.site-header {
+  transition:
+    background-color var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    padding var(--dur) var(--ease-out);
+}
+.site-header.is-scrolled {
+  background: color-mix(in oklab, var(--canvas) 72%, transparent);
+  box-shadow: 0 1px 0 var(--line), 0 10px 30px -20px rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+}
+
+/* Filter chip: the selected one gets a gentle "breathing" glow. */
+@keyframes breathe {
+  50% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
+}
+.chip-active {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* Content swap when the branch filter changes: quick fade/slide so the change is noticed. */
+@keyframes swap {
+  from { opacity: 0.35; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.swap { animation: swap 450ms var(--ease-out); }
 
 /* Reading progress bar at the very top. */
 .progress {

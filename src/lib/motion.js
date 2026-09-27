@@ -23,21 +23,29 @@ export function useReducedMotion() {
 const easeOutExpo = (t) => (t === 1 ? 1 : 1 - 2 ** (-10 * t))
 
 /**
- * Count from 0 up to `target` over `duration` ms using requestAnimationFrame.
+ * Animate a number toward `target` over `duration` ms using requestAnimationFrame.
+ * The first run counts up from 0 (after `delay`); later changes (e.g. picking a branch)
+ * glide from whatever is on screen right now to the new target — even mid-animation.
  * Returns the in-between number; format it yourself (formatBaht etc.).
  */
 export function useCountUp(target, { duration = 1400, delay = 0 } = {}) {
   const reduced = useReducedMotion()
   const [value, setValue] = useState(reduced ? target : 0)
+  const current = useRef(value) // latest on-screen value, read when a new target arrives
+  const firstRun = useRef(true)
 
   useEffect(() => {
     if (reduced) return
+    const from = current.current
+    const wait = firstRun.current ? delay : 0
+    firstRun.current = false
     let frame
     let start
     const tick = (now) => {
-      start ??= now + delay
+      start ??= now + wait
       const t = Math.min(1, Math.max(0, (now - start) / duration))
-      setValue(target * easeOutExpo(t))
+      current.current = from + (target - from) * easeOutExpo(t)
+      setValue(current.current)
       if (t < 1) frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
@@ -111,6 +119,20 @@ export function useTilt({ max = 6 } = {}) {
   }, [max])
 
   return ref
+}
+
+/**
+ * True once the page is scrolled past `offset` px. Only re-renders when the answer flips,
+ * not on every scroll event — so a big component can use it cheaply.
+ */
+export function useScrolled(offset = 12) {
+  const [scrolled, setScrolled] = useState(() => window.scrollY > offset)
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > offset) // same value → React skips the render
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [offset])
+  return scrolled
 }
 
 /** 0–1 how far the page is scrolled, for the reading-progress bar. */

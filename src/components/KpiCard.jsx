@@ -1,4 +1,5 @@
 import { useCountUp, useTilt } from '../lib/motion'
+import Sparkline from './Sparkline'
 
 // Line icons (24×24, stroke = currentColor) so they follow the theme like text does.
 const ICONS = {
@@ -32,9 +33,10 @@ const ICONS = {
 
 // A single headline number that counts up from 0. `value` is the raw number and `format`
 // turns it into text, so the animation runs on numbers, not strings.
+// `spark` = optional list of numbers for a mini trend line under the value.
 // `trend` is an optional { value, text, label }: value is the signed ratio (arrow direction).
 // Arrow + words, never color alone.
-function KpiCard({ label, value, format, hint, trend, icon, delay = 0 }) {
+function KpiCard({ label, value, format, hint, trend, icon, spark, delay = 0 }) {
   const shown = useCountUp(value, { delay: delay + 200 })
   const tiltRef = useTilt()
 
@@ -60,6 +62,7 @@ function KpiCard({ label, value, format, hint, trend, icon, delay = 0 }) {
         <span className="sr-only">{format(value)}</span>
       </p>
       {hint && <p className="mt-2 text-xs text-muted sm:text-sm">{hint}</p>}
+      {spark && <Sparkline values={spark} className="mt-3 h-8 w-full" />}
       {trend && (
         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-xs whitespace-nowrap text-ink-2">
           <svg viewBox="0 0 12 12" className={`size-3 ${trend.value < 0 ? 'rotate-180' : 'animate-bounce'}`} aria-hidden="true">

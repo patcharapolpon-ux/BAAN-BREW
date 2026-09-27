@@ -144,6 +144,69 @@ export function salesByBranch(rows) {
     .sort((a, b) => b.sales - a.sales)
 }
 
+/** Rows of one branch; branch null = every row (no filter). */
+export function filterByBranch(rows, branch) {
+  return branch ? rows.filter((row) => row.branch === branch) : rows
+}
+
+/**
+ * Sales grouped by any column (e.g. 'payment_method', 'channel'), largest first:
+ * [{ name, sales, share }]; share = group ÷ total (0–1). Blank values become 'ไม่ระบุ'.
+ */
+export function salesByField(rows, field) {
+  const byName = new Map()
+  let total = 0
+  for (const row of rows) {
+    const name = (row[field] ?? '').trim() || 'ไม่ระบุ'
+    const amount = lineTotal(row)
+    byName.set(name, (byName.get(name) ?? 0) + amount)
+    total += amount
+  }
+  return [...byName]
+    .map(([name, sales]) => ({ name, sales, share: total === 0 ? 0 : sales / total }))
+    .sort((a, b) => b.sales - a.sales)
+}
+
+export const THAI_WEEKDAYS = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสฯ', 'ศุกร์', 'เสาร์']
+
+/**
+ * Sales by weekday × hour of day, in Thai time, for the heatmap.
+ * Returns { hours: [7, 8, …], days: [{ weekday: 1..0, name, cells: [{ hour, sales }] }], max, peak }.
+ * Rows run Monday → Sunday; hours span the earliest to latest hour with any sale.
+ * peak = the single busiest { weekday, name, hour, sales } cell.
+ */
+export function salesHeatmap(rows) {
+  const grid = Array.from({ length: 7 }, () => new Map())
+  let minHour = 23
+  let maxHour = 0
+  for (const row of rows) {
+    const t = new Date(Date.parse(row.datetime) + THAI_OFFSET_MS)
+    const day = t.getUTCDay()
+    const hour = t.getUTCHours()
+    grid[day].set(hour, (grid[day].get(hour) ?? 0) + lineTotal(row))
+    if (hour < minHour) minHour = hour
+    if (hour > maxHour) maxHour = hour
+  }
+  if (rows.length === 0) return { hours: [], days: [], max: 0, peak: null }
+
+  const hours = []
+  for (let h = minHour; h <= maxHour; h++) hours.push(h)
+  let max = 0
+  let peak = null
+  const days = [1, 2, 3, 4, 5, 6, 0].map((weekday) => {
+    const cells = hours.map((hour) => {
+      const sales = grid[weekday].get(hour) ?? 0
+      if (sales > max) {
+        max = sales
+        peak = { weekday, name: THAI_WEEKDAYS[weekday], hour, sales }
+      }
+      return { hour, sales }
+    })
+    return { weekday, name: THAI_WEEKDAYS[weekday], cells }
+  })
+  return { hours, days, max, peak }
+}
+
 /**
  * All KPI card values in one object. Per-day figures divide by dayCount()
  * (calendar days in range), so quiet days pull the average down as they should.

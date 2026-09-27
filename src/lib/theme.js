@@ -67,6 +67,7 @@ export function useChartColors(resolved) {
       muted: token('muted'),
       surface: token('surface'),
       surface2: token('surface-2'),
+      categorical: [1, 2, 3, 4, 5].map((i) => token(`cat-${i}`)),
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolved])
