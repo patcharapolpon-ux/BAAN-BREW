@@ -29,6 +29,27 @@ const ICONS = {
       <path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" />
     </>
   ),
+  newMember: (
+    <>
+      <circle cx="10" cy="8" r="3.5" />
+      <path d="M3.5 20a6.5 6.5 0 0 1 13 0" />
+      <path d="M19 8v6M16 11h6" />
+    </>
+  ),
+  wallet: (
+    <>
+      <rect x="3" y="6" width="18" height="13" rx="3" />
+      <path d="M3 10h18M16 14.5h2" />
+    </>
+  ),
+  repeat: (
+    <>
+      <path d="M4 11a8 8 0 0 1 14-5l2 2" />
+      <path d="M20 4v4h-4" />
+      <path d="M20 13a8 8 0 0 1-14 5l-2-2" />
+      <path d="M4 20v-4h4" />
+    </>
+  ),
 }
 
 // A single headline number that counts up from 0. `value` is the raw number and `format`

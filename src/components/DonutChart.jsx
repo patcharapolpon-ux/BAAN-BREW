@@ -9,8 +9,9 @@ import { useReducedMotion } from '../lib/motion'
  * - the other slices fade,
  * - the center switches from the total to that slice's name + share.
  * Legend rows are real buttons, so keyboard users get the same highlight via focus.
+ * `format` turns a slice value into text (baht by default; pass another for counts).
  */
-function DonutChart({ data, colors, show = true }) {
+function DonutChart({ data, colors, show = true, format = formatBaht }) {
   const reduced = useReducedMotion()
   const [active, setActive] = useState(null)
   const total = data.reduce((sum, d) => sum + d.sales, 0)
@@ -72,7 +73,7 @@ function DonutChart({ data, colors, show = true }) {
           <div key={current?.name ?? 'total'} className="pop">
             <p className="text-xs text-muted">{current ? current.name : 'รวมทั้งหมด'}</p>
             <p className="text-lg font-medium text-ink tabular-nums">
-              {current ? formatPercent(current.share) : formatBaht(total)}
+              {current ? formatPercent(current.share) : format(total)}
             </p>
           </div>
         </div>
@@ -95,7 +96,7 @@ function DonutChart({ data, colors, show = true }) {
               {/* Name on top, baht underneath — keeps full Thai names readable in a narrow column. */}
               <span className="min-w-0 flex-1">
                 <span className="block text-ink-2">{d.name}</span>
-                <span className="block text-xs text-muted tabular-nums">{formatBaht(d.sales)}</span>
+                <span className="block text-xs text-muted tabular-nums">{format(d.sales)}</span>
               </span>
               <span className="font-medium text-ink tabular-nums">{formatPercent(d.share)}</span>
             </button>

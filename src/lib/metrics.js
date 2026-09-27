@@ -227,6 +227,151 @@ export function summarize(rows) {
   }
 }
 
+// ---- customers (public/customers.csv: 1 row = 1 member) ----
+
+/** Whole days from date a to date b ('YYYY-MM-DD'); positive when b is later. */
+export function daysBetween(a, b) {
+  return Math.round((Date.parse(b) - Date.parse(a)) / DAY_MS)
+}
+
+/**
+ * Each member joined with what they bought: { ...customer, orders, spend, first, last }.
+ * orders = distinct bills, spend = Σ qty × unit_price, first/last = Thai purchase dates
+ * (null when the member never bought). Sales rows with a blank customer_id are walk-ins and skipped.
+ */
+export function customerProfiles(customers, rows) {
+  const byId = new Map()
+  for (const row of rows) {
+    const id = (row.customer_id ?? '').trim()
+    if (!id) continue
+    const date = toThaiDate(row.datetime)
+    const cur = byId.get(id) ?? { bills: new Set(), spend: 0, first: date, last: date }
+    cur.bills.add(row.order_id)
+    cur.spend += lineTotal(row)
+    if (date < cur.first) cur.first = date
+    if (date > cur.last) cur.last = date
+    byId.set(id, cur)
+  }
+  return customers.map((c) => {
+    const a = byId.get(c.customer_id)
+    return { ...c, orders: a ? a.bills.size : 0, spend: a ? a.spend : 0, first: a?.first ?? null, last: a?.last ?? null }
+  })
+}
+
+function median(values) {
+  if (values.length === 0) return 0
+  const s = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
+}
+
+/**
+ * Member KPI values as of `asOf` (the last sales date — the data is historical, so "today"
+ * would make everyone look inactive). Spend figures count only members who bought.
+ * New members compare the last two *complete* months: sign-ups stop a few days before
+ * sales do, so a trailing 30-day window would show a fake drop.
+ */
+export function summarizeCustomers(profiles, asOf) {
+  const buyers = profiles.filter((p) => p.orders > 0)
+  const fullMonths = joinsByMonth(profiles, asOf).filter((m) => !m.partial)
+  const newMonth = fullMonths.at(-1) ?? null
+  const prevMonth = fullMonths.at(-2) ?? null
+  const active30 = buyers.filter((p) => daysBetween(p.last, asOf) < 30).length
+  const spend = buyers.map((p) => p.spend)
+  return {
+    total: profiles.length,
+    buyers: buyers.length,
+    buyerShare: profiles.length === 0 ? 0 : buyers.length / profiles.length,
+    newMonth, // { month, count } of the latest complete month
+    newChange: newMonth && prevMonth?.count ? (newMonth.count - prevMonth.count) / prevMonth.count : null,
+    avgSpend: buyers.length === 0 ? 0 : spend.reduce((a, b) => a + b, 0) / buyers.length,
+    medianSpend: median(spend),
+    active30,
+    active30Share: buyers.length === 0 ? 0 : active30 / buyers.length,
+  }
+}
+
+/**
+ * New members per calendar month, oldest first: [{ month: 'YYYY-MM', count, partial }].
+ * partial = the month isn't over yet at `asOf`, so its count isn't comparable.
+ */
+export function joinsByMonth(profiles, asOf) {
+  const byMonth = new Map()
+  for (const p of profiles) {
+    const m = p.joined_date.slice(0, 7)
+    byMonth.set(m, (byMonth.get(m) ?? 0) + 1)
+  }
+  const [y, mo, d] = asOf.split('-').map(Number)
+  const monthOver = d === new Date(Date.UTC(y, mo, 0)).getUTCDate()
+  return [...byMonth]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, count]) => ({ month, count, partial: month === asOf.slice(0, 7) && !monthOver }))
+}
+
+/** Recency buckets, most recent first. maxDays is exclusive; the last bucket is "never bought". */
+export const RECENCY_BUCKETS = [
+  { key: 'd30', label: 'ซื้อใน 30 วัน', maxDays: 30 },
+  { key: 'd90', label: '31–90 วันก่อน', maxDays: 90 },
+  { key: 'd180', label: '91–180 วันก่อน', maxDays: 180 },
+  { key: 'older', label: 'เกิน 180 วัน', maxDays: Infinity },
+  { key: 'never', label: 'ยังไม่เคยซื้อ', maxDays: null },
+]
+
+/** Members per recency bucket (days since last purchase, as of asOf): [{ key, label, count, share }]. */
+export function recencySegments(profiles, asOf) {
+  const counts = Object.fromEntries(RECENCY_BUCKETS.map((b) => [b.key, 0]))
+  for (const p of profiles) {
+    if (!p.last) {
+      counts.never++
+      continue
+    }
+    const days = daysBetween(p.last, asOf)
+    counts[RECENCY_BUCKETS.find((b) => b.maxDays != null && days < b.maxDays).key]++
+  }
+  return RECENCY_BUCKETS.map((b) => ({
+    key: b.key,
+    label: b.label,
+    count: counts[b.key],
+    share: profiles.length === 0 ? 0 : counts[b.key] / profiles.length,
+  }))
+}
+
+export const AGE_ORDER = ['ต่ำกว่า 18', '18-24', '25-34', '35-44', '45-54', '55+']
+
+/**
+ * Members grouped by a column (e.g. 'age_group', 'gender', 'home_branch'):
+ * [{ name, members, share, buyers, buyerShare, spend, spendPerBuyer }].
+ * `order` = fixed category order (e.g. AGE_ORDER); without it, largest group first.
+ */
+export function customersByGroup(profiles, field, order) {
+  const byName = new Map()
+  for (const p of profiles) {
+    const name = (p[field] ?? '').trim() || 'ไม่ระบุ'
+    const cur = byName.get(name) ?? { name, members: 0, buyers: 0, spend: 0 }
+    cur.members++
+    if (p.orders > 0) cur.buyers++
+    cur.spend += p.spend
+    byName.set(name, cur)
+  }
+  const list = [...byName.values()].map((g) => ({
+    ...g,
+    share: profiles.length === 0 ? 0 : g.members / profiles.length,
+    buyerShare: g.members === 0 ? 0 : g.buyers / g.members,
+    spendPerBuyer: g.buyers === 0 ? 0 : g.spend / g.buyers,
+  }))
+  if (!order) return list.sort((a, b) => b.members - a.members)
+  const rank = (name) => (order.includes(name) ? order.indexOf(name) : order.length)
+  return list.sort((a, b) => rank(a.name) - rank(b.name))
+}
+
+/** The n members who spent the most, highest first (ties: more bills first). */
+export function topCustomers(profiles, n = 10) {
+  return profiles
+    .filter((p) => p.orders > 0)
+    .sort((a, b) => b.spend - a.spend || b.orders - a.orders)
+    .slice(0, n)
+}
+
 // ---- formatting ----
 
 /** "฿1,234,567" — thousands separators, fixed decimals (default 0). */

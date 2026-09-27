@@ -5,9 +5,12 @@ import BranchSalesChart from './components/BranchSalesChart'
 import DailySalesChart from './components/DailySalesChart'
 import DonutChart from './components/DonutChart'
 import KpiCard from './components/KpiCard'
+import PageTabs from './components/PageTabs'
+import Panel from './components/Panel'
 import SalesHeatmap from './components/SalesHeatmap'
 import ThemeToggle from './components/ThemeToggle'
 import Lab2Page from './lab2/Lab2Page'
+import CustomersPage from './pages/CustomersPage'
 import {
   comparePeriods,
   dailySales,
@@ -23,7 +26,7 @@ import {
   salesHeatmap,
   summarize,
 } from './lib/metrics'
-import { prefersReducedMotion, useInView, useScrolled, useScrollProgress } from './lib/motion'
+import { prefersReducedMotion, useScrolled, useScrollProgress } from './lib/motion'
 import { useChartColors, useTheme } from './lib/theme'
 
 const SHORT_DATE = { day: 'numeric', month: 'short', year: '2-digit' }
@@ -73,28 +76,6 @@ function BeanMark() {
         </g>
       </svg>
     </button>
-  )
-}
-
-// Section card that animates in when it scrolls into view. `children` may be a function
-// that receives `inView`, so a chart can wait and play its own animation on arrival.
-function Panel({ title, subtitle, delay = 0, className = 'mt-4 sm:mt-6', children }) {
-  const [ref, inView] = useInView()
-  return (
-    <section
-      ref={ref}
-      className={`reveal rounded-2xl border border-line bg-surface/85 p-4 shadow-card backdrop-blur-sm transition-shadow duration-300 hover:shadow-lg sm:p-7 ${className} ${inView ? 'is-visible' : ''}`}
-      style={{ animationDelay: `${delay}ms` }}
-    >
-      <div className="mb-4 sm:mb-5">
-        <h2 className="flex items-center gap-2 font-medium text-ink">
-          <span className="inline-block h-4 w-1 rounded-full bg-accent" aria-hidden="true" />
-          {title}
-        </h2>
-        {subtitle && <p className="mt-0.5 text-xs text-muted sm:text-sm">{subtitle}</p>}
-      </div>
-      {typeof children === 'function' ? children(inView) : children}
-    </section>
   )
 }
 
@@ -235,6 +216,11 @@ function App() {
   }, [rows, branch])
 
   if (hash === '#lab2') return <Lab2Screen rows={rows} />
+  const page = hash === '#customers' ? 'customers' : 'sales'
+  const range =
+    stats?.daily.length > 0
+      ? `${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
+      : ''
 
   return (
     <div className="min-h-screen">
@@ -250,11 +236,13 @@ function App() {
           preference={preference}
           onThemeChange={setPreference}
           subtitle={
-            stats?.daily.length > 0
-              ? `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
-              : 'ภาพรวมยอดขาย'
+            page === 'customers'
+              ? `ลูกค้าสมาชิก ${range}`
+              : `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${range}`
           }
         />
+
+        <PageTabs value={page} />
 
         {error && (
           <p role="alert" className="rounded-2xl border border-line bg-surface p-5 text-ink">
@@ -263,7 +251,9 @@ function App() {
         )}
         {!stats && !error && <Skeleton />}
 
-        {stats && (
+        {stats && page === 'customers' && <CustomersPage rows={rows} colors={colors} />}
+
+        {stats && page === 'sales' && (
           <main>
             <div className="rise mb-4 sm:mb-6" style={{ animationDelay: '80ms' }}>
               <BranchFilter branches={branches.map((b) => b.branch)} value={branch} onChange={setBranch} />

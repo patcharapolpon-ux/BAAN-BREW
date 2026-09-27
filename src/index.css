@@ -358,3 +358,10 @@ body {
 .recharts-wrapper *:focus:not(:focus-visible) {
   outline: none;
 }
+
+/* Hatched grey fill for "no data / not yet" bars (e.g. members who never bought) —
+   reads as different from the coffee bars even without color vision. */
+.hatch {
+  background: repeating-linear-gradient(135deg, var(--muted) 0 2px, transparent 2px 6px);
+  opacity: 0.7;
+}
