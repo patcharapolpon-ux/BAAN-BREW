@@ -1,5 +1,6 @@
 import Papa from 'papaparse'
 import { useEffect, useMemo, useState } from 'react'
+import BeanTrail from './components/BeanTrail'
 import BranchFilter from './components/BranchFilter'
 import BranchSalesChart from './components/BranchSalesChart'
 import DailySalesChart from './components/DailySalesChart'
@@ -9,6 +10,7 @@ import PageTabs from './components/PageTabs'
 import Panel from './components/Panel'
 import SiteCredit from './components/SiteCredit'
 import SalesHeatmap from './components/SalesHeatmap'
+import SoundToggle from './components/SoundToggle'
 import ThemeToggle from './components/ThemeToggle'
 import Lab2Page from './lab2/Lab2Page'
 import CustomersPage from './pages/CustomersPage'
@@ -28,6 +30,7 @@ import {
   summarize,
 } from './lib/metrics'
 import { prefersReducedMotion, useScrolled, useScrollProgress } from './lib/motion'
+import { installClickSounds } from './lib/sound'
 import { useChartColors, useTheme } from './lib/theme'
 
 const SHORT_DATE = { day: 'numeric', month: 'short', year: '2-digit' }
@@ -59,6 +62,7 @@ function BeanMark() {
   return (
     <button
       type="button"
+      data-sound="beans"
       onClick={burstBeans}
       aria-label="บ้านบรู (กดเล่นได้)"
       className="group shrink-0 rounded-xl transition-transform duration-300 [transition-timing-function:var(--ease-spring)] hover:scale-110 hover:-rotate-6 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-90"
@@ -112,6 +116,7 @@ function BackToTop() {
     <button
       type="button"
       aria-label="กลับขึ้นด้านบน"
+      data-sound="whoosh"
       tabIndex={visible ? 0 : -1}
       onClick={() => window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' })}
       className={`fixed right-4 bottom-4 z-40 grid size-12 place-items-center rounded-full border border-line bg-surface text-accent shadow-card transition-all duration-300 [transition-timing-function:var(--ease-spring)] hover:-translate-y-1 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-90 sm:right-8 sm:bottom-8 ${
@@ -142,7 +147,10 @@ function Header({ subtitle, preference, onThemeChange }) {
           <p className="truncate text-xs text-muted sm:text-sm">{subtitle}</p>
         </div>
       </div>
-      <ThemeToggle preference={preference} onChange={onThemeChange} />
+      <div className="flex shrink-0 items-center gap-2">
+        <SoundToggle />
+        <ThemeToggle preference={preference} onChange={onThemeChange} />
+      </div>
     </header>
   )
 }
@@ -188,6 +196,8 @@ function App() {
   const colors = useChartColors(resolved)
   const [branch, setBranch] = useState(null) // null = all branches
   const hash = useHash()
+
+  useEffect(installClickSounds, [])
 
   useEffect(() => {
     Papa.parse('/sales.csv', {
@@ -344,6 +354,7 @@ function App() {
       </div>
 
       <BackToTop />
+      <BeanTrail theme={resolved} />
     </div>
   )
 }

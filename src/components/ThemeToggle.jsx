@@ -50,6 +50,7 @@ function ThemeToggle({ preference, onChange }) {
   return (
     <SegmentedControl
       label="ธีมสี"
+      sound="pour"
       options={OPTIONS}
       value={preference}
       onChange={(next, event) => next !== preference && switchTheme(next, event, onChange)}

@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 // The pill is a single absolutely-positioned element; we measure the active button
 // and move the pill with transform (GPU-friendly, no layout shift).
 // `renderOption(option, active)` lets callers draw icons instead of text.
-function SegmentedControl({ options, value, onChange, label, renderOption, className = '', buttonClassName = '' }) {
+function SegmentedControl({ options, value, onChange, label, renderOption, className = '', buttonClassName = '', sound = 'select' }) {
   const buttons = useRef({})
   const [pill, setPill] = useState(null)
 
@@ -19,7 +19,7 @@ function SegmentedControl({ options, value, onChange, label, renderOption, class
   }, [value, options])
 
   return (
-    <div role="group" aria-label={label} className={`relative flex rounded-full border border-line bg-surface p-1 shadow-card ${className}`}>
+    <div role="group" aria-label={label} data-sound={sound} className={`relative flex rounded-full border border-line bg-surface p-1 shadow-card ${className}`}>
       {pill && (
         <span
           aria-hidden="true"

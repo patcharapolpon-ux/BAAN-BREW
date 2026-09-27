@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { formatBaht, formatPercent } from '../lib/metrics'
 import { useReducedMotion } from '../lib/motion'
+import { playSound } from '../lib/sound'
 import { useIsMobile } from '../lib/useIsMobile'
 import ChartTooltip from './ChartTooltip'
 
@@ -59,6 +60,7 @@ function BranchSalesChart({ data, colors, show = true, selected = null, onSelect
           const i = state?.activeTooltipIndex
           if (i == null || !onSelect) return
           const branch = data[Number(i)].branch
+          playSound('select')
           onSelect(branch === selected ? null : branch)
         }}
       >

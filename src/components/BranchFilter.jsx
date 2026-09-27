@@ -3,7 +3,7 @@
 function BranchFilter({ branches, value, onChange }) {
   const options = [{ value: null, label: 'ทุกสาขา' }, ...branches.map((b) => ({ value: b, label: b }))]
   return (
-    <div role="group" aria-label="เลือกสาขา" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="เลือกสาขา" data-sound="select" className="flex flex-wrap gap-2">
       {options.map(({ value: v, label }) => {
         const active = v === value
         return (
