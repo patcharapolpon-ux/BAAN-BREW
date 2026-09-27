@@ -365,3 +365,11 @@ body {
   background: repeating-linear-gradient(135deg, var(--muted) 0 2px, transparent 2px 6px);
   opacity: 0.7;
 }
+
+/* Credit line: the maker's name warms to the coffee accent on hover. */
+.credit-name {
+  transition: color var(--dur) var(--ease-out);
+}
+.credit-name:hover {
+  color: var(--accent);
+}

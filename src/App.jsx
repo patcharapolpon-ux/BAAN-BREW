@@ -7,6 +7,7 @@ import DonutChart from './components/DonutChart'
 import KpiCard from './components/KpiCard'
 import PageTabs from './components/PageTabs'
 import Panel from './components/Panel'
+import SiteCredit from './components/SiteCredit'
 import SalesHeatmap from './components/SalesHeatmap'
 import ThemeToggle from './components/ThemeToggle'
 import Lab2Page from './lab2/Lab2Page'
@@ -164,6 +165,7 @@ function Lab2Screen({ rows }) {
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
         <a href="#" className="mb-4 inline-block text-sm text-stone-600 underline">← กลับไปแดชบอร์ด</a>
         {prepared && products ? <Lab2Page rows={prepared} products={products} /> : <p>กำลังโหลดข้อมูล…</p>}
+        <SiteCredit />
       </div>
     </div>
   )
@@ -337,6 +339,8 @@ function App() {
             </footer>
           </main>
         )}
+
+        <SiteCredit />
       </div>
 
       <BackToTop />
