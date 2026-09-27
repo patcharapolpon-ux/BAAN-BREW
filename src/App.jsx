@@ -17,6 +17,7 @@ import ShopSign from './components/ShopSign'
 import ShareButton from './components/ShareButton'
 import SoundToggle from './components/SoundToggle'
 import ThemeToggle from './components/ThemeToggle'
+import ToyBoundary from './components/ToyBoundary'
 import { TimeMachineButton } from './components/TimeMachine'
 import Toaster from './components/Toaster'
 import Lab2Page from './lab2/Lab2Page'
@@ -414,7 +415,11 @@ function App() {
       <BackToTop />
       <ScrollCup />
       <ShopCat />
-      {gameSlot && rows && <BaristaGame rows={rows} slot={gameSlot} onClose={closeGame} />}
+      {gameSlot && rows && (
+        <ToyBoundary onError={closeGame}>
+          <BaristaGame rows={rows} slot={gameSlot} onClose={closeGame} />
+        </ToyBoundary>
+      )}
       <Toaster />
       <BeanTrail theme={colorKey} />
     </div>

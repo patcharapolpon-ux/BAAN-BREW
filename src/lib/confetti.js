@@ -32,7 +32,7 @@ function ensureCanvas() {
 }
 
 function frame(now) {
-  const dt = Math.min(now - last, 50)
+  const dt = Math.max(0, Math.min(now - last, 50)) // the first frame can be stamped before `last`
   last = now
   g.setTransform(1, 0, 0, 1, 0, 0)
   g.clearRect(0, 0, canvas.width, canvas.height)

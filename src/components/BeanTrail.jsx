@@ -89,7 +89,9 @@ function BeanTrail({ theme }) {
     }
 
     const frame = (now) => {
-      const dt = Math.min(now - last, 50) // after a tab switch, don't jump a whole second
+      // clamp: never negative (the first frame can be stamped slightly before `last`), and after
+      // a tab switch don't jump a whole second
+      const dt = Math.max(0, Math.min(now - last, 50))
       last = now
       g.setTransform(1, 0, 0, 1, 0, 0)
       g.clearRect(0, 0, canvas.width, canvas.height)

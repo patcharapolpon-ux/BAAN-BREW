@@ -113,7 +113,7 @@ export async function toggleQuake() {
   let raf = 0
   let last = performance.now()
   const loop = (now) => {
-    Engine.update(engine, Math.min(now - last, 32))
+    Engine.update(engine, Math.max(1, Math.min(now - last, 32))) // clamp: rAF time can be before `last`
     last = now
     for (const { el, body, cx, cy } of items) {
       el.style.transform = `translate(${body.position.x - cx}px, ${body.position.y - cy}px) rotate(${body.angle}rad)`

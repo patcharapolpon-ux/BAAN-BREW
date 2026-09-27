@@ -3,6 +3,7 @@ import { fireConfetti } from '../lib/confetti'
 import { branchRace, formatBaht, formatNumber, formatThaiDate } from '../lib/metrics'
 import { playSound } from '../lib/sound'
 import Overlay from './Overlay'
+import ToyBoundary from './ToyBoundary'
 
 // "Time machine": replays the whole sales history day by day as a bar chart race.
 // Plain divs, not Recharts: each bar's rank is a translateY and its length a scaleX, both
@@ -31,7 +32,10 @@ function TimeMachine({ rows, colors, onClose }) {
     let raf = 0
     let last = performance.now()
     const tick = (now) => {
-      pos.current = Math.min(pos.current + ((now - last) / 1000) * speed, frames.length - 1)
+      // A frame's timestamp can be a little EARLIER than the performance.now() we started from,
+      // so the step is clamped at 0 — a negative step once made the day -1 and crashed the page.
+      const step = Math.max(0, now - last) / 1000
+      pos.current = Math.min(Math.max(0, pos.current + step * speed), frames.length - 1)
       last = now
       const next = Math.floor(pos.current)
       setDay((d) => (d === next ? d : next)) // same value → React skips the render
@@ -181,7 +185,11 @@ export function TimeMachineButton({ rows, colors }) {
       >
         <span aria-hidden="true">⏪</span> ย้อนเวลา
       </button>
-      {open && <TimeMachine rows={rows} colors={colors} onClose={close} />}
+      {open && (
+        <ToyBoundary onError={close}>
+          <TimeMachine rows={rows} colors={colors} onClose={close} />
+        </ToyBoundary>
+      )}
     </>
   )
 }
