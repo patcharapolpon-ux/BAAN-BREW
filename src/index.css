@@ -412,6 +412,143 @@ body {
   background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.035) 0 1px, transparent 1px 3px);
 }
 
+/* ─── Overlay dialogs (time machine, mini game) ───────────────────────────── */
+@keyframes overlay-in { from { opacity: 0; } }
+.overlay-in { animation: overlay-in 220ms var(--ease-out) both; }
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.panel-in { animation: panel-in 420ms var(--ease-spring) both; }
+
+/* ─── Time machine: bar chart race ────────────────────────────────────────── */
+/* Durations are set inline to match the playback speed. */
+.race-row { transition-property: transform; transition-timing-function: var(--ease-out); }
+.race-bar { transform-origin: left; transition-property: transform; transition-timing-function: linear; }
+.race-progress { transition: transform 120ms linear; }
+/* calendar page flips down each new month */
+@keyframes flip-in {
+  from { transform: perspective(300px) rotateX(-90deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.flip-in { animation: flip-in 380ms var(--ease-out) both; transform-origin: top; }
+
+/* ─── Mini game ───────────────────────────────────────────────────────────── */
+@keyframes ticket-in {
+  from { opacity: 0; transform: translateY(-18px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+.ticket-in { animation: ticket-in 260ms var(--ease-spring) both; }
+/* countdown bar under each ticket; duration set inline = that ticket's patience */
+@keyframes ticket-timer {
+  from { transform: scaleX(1); background: var(--accent); }
+  70% { background: var(--accent); }
+  to { transform: scaleX(0); background: #e5484d; }
+}
+.ticket-timer { animation-name: ticket-timer; animation-timing-function: linear; animation-fill-mode: both; }
+
+/* ─── Shop cat ────────────────────────────────────────────────────────────── */
+.cat { transition: transform 200ms var(--ease-out); }
+.cat-svg * { transform-box: fill-box; }
+.cat-leg { transform-origin: top center; }
+.cat-closed { opacity: 0; }
+@keyframes cat-step { 0%, 100% { transform: rotate(18deg); } 50% { transform: rotate(-18deg); } }
+.cat-walk .cat-leg-b1, .cat-walk .cat-leg-f2 { animation: cat-step 420ms ease-in-out infinite; }
+.cat-walk .cat-leg-b2, .cat-walk .cat-leg-f1 { animation: cat-step 420ms ease-in-out infinite reverse; }
+.cat-walk .cat-svg { animation: cat-bob 210ms ease-in-out infinite alternate; }
+@keyframes cat-bob { to { transform: translateY(-1.5px); } }
+.cat-tail { transform-origin: right bottom; }
+@keyframes cat-tail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-16deg); } }
+.cat-sit .cat-tail, .cat-walk .cat-tail { animation: cat-tail 1.8s ease-in-out infinite; }
+/* blink every few seconds while awake */
+.cat-eyes { transform-origin: center; animation: cat-blink 4.5s infinite; }
+@keyframes cat-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+/* napping / sleeping: eyes shut, legs tucked, slow breathing */
+.cat-nap .cat-eyes, .cat-sleep .cat-eyes { opacity: 0; animation: none; }
+.cat-nap .cat-closed, .cat-sleep .cat-closed { opacity: 1; }
+.cat-nap .cat-leg, .cat-sleep .cat-leg { transform: scaleY(0.35); }
+.cat-nap .cat-svg, .cat-sleep .cat-svg { transform-origin: bottom; animation: cat-breathe 2.6s ease-in-out infinite; }
+@keyframes cat-breathe { 0%, 100% { transform: translateY(6px) scaleY(0.9); } 50% { transform: translateY(6px) scaleY(0.96); } }
+.cat-jump .cat-leg-f1, .cat-jump .cat-leg-f2 { transform: rotate(-35deg); }
+.cat-jump .cat-leg-b1, .cat-jump .cat-leg-b2 { transform: rotate(35deg); }
+.cat-zzz span, .cat-zzz { display: inline-block; animation: zzz 2.4s ease-in-out infinite; }
+.cat-zzz span:nth-child(1) { animation-delay: 0.4s; }
+.cat-zzz span:nth-child(2) { animation-delay: 0.8s; }
+@keyframes zzz { 0% { opacity: 0; transform: translate(0, 4px) scale(0.7); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -10px) scale(1.1); } }
+@keyframes cat-heart { from { opacity: 1; transform: translate(-50%, 0) scale(0.6); } to { opacity: 0; transform: translate(-50%, -34px) scale(1.2); } }
+.cat-heart { animation: cat-heart 1s var(--ease-out) forwards; }
+
+/* ─── Earthquake ──────────────────────────────────────────────────────────── */
+@keyframes quake-shake {
+  0%, 100% { transform: none; }
+  10%, 50%, 90% { transform: translate(-7px, 3px) rotate(-0.6deg); }
+  30%, 70% { transform: translate(7px, -3px) rotate(0.6deg); }
+}
+.quake-shake main { animation: quake-shake 160ms linear 4; }
+.quake-fix { animation: toast-in 450ms var(--ease-spring) both; }
+
+/* ─── Time of day: a sky layer above the ambient blobs, behind everything else ─ */
+.daypart-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.5s var(--ease-out);
+}
+/* morning: soft sun rays from the top-left */
+[data-daypart="morning"] .daypart-sky {
+  opacity: 1;
+  background:
+    radial-gradient(60vmax 40vmax at 0% 0%, rgb(255 214 140 / 0.35), transparent 70%),
+    repeating-conic-gradient(from 110deg at 0% 0%, rgb(255 220 150 / 0.08) 0deg 4deg, transparent 4deg 12deg);
+}
+/* evening: sunset glow along the top */
+[data-daypart="evening"] .daypart-sky {
+  opacity: 1;
+  background: linear-gradient(to bottom, rgb(255 120 70 / 0.22), rgb(255 170 90 / 0.1) 30%, transparent 60%);
+}
+/* night: deep blue wash + a few twinkling stars */
+[data-daypart="night"] .daypart-sky {
+  opacity: 1;
+  background: linear-gradient(to bottom, rgb(20 30 80 / 0.28), transparent 55%);
+}
+.daypart-sky i {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+}
+[data-daypart="night"] .daypart-sky i { animation: twinkle 3.2s ease-in-out infinite; }
+@keyframes twinkle { 0%, 100% { opacity: 0.1; transform: scale(0.7); } 50% { opacity: 0.85; transform: scale(1); } }
+
+/* Open/closed sign swings in on its string, and again on hover. */
+.shop-sign::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 10px;
+  height: 7px;
+  border: 1px solid var(--muted);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  transform: translateX(-50%);
+  opacity: 0.6;
+}
+.shop-sign-board { transform-origin: 50% -6px; animation: sign-swing 1.8s var(--ease-out) 600ms both; }
+.shop-sign:hover .shop-sign-board { animation: sign-swing 1.4s var(--ease-out); }
+@keyframes sign-swing {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  35% { transform: rotate(-10deg); }
+  55% { transform: rotate(6deg); }
+  75% { transform: rotate(-3deg); }
+  100% { transform: rotate(0); }
+}
+
 /*
  * Accessibility: people who turn on "reduce motion" in their OS (motion sickness, vestibular
  * disorders) get everything instantly — no drifting, tilting, shimmering or bursting.
@@ -446,3 +583,20 @@ body {
 .credit-name:hover {
   color: var(--accent);
 }
+
+/* Footer "toys" buttons */
+.toy-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 2.25rem;
+  padding: 0 0.9rem;
+  border-radius: 9999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: var(--shadow);
+  transition: transform 300ms var(--ease-spring), color 200ms;
+}
+.toy-btn:hover { transform: translateY(-2px); color: var(--accent); }
+.toy-btn:active { transform: scale(0.95); }
+.toy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

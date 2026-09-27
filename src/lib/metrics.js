@@ -227,6 +227,64 @@ export function summarize(rows) {
   }
 }
 
+/**
+ * Running totals per day for the "time machine" replay (a bar chart race of branches).
+ * Returns { branches: [names, final ranking], frames: [{ date, daySales, sales, bills, byBranch: [cum per branch] }] }.
+ * Every calendar day from first to last sale gets a frame (quiet days repeat the totals),
+ * byBranch is in the same order as `branches`, and bills counts each order_id once, on its first row.
+ */
+export function branchRace(rows) {
+  const branches = salesByBranch(rows).map((b) => b.branch)
+  const index = new Map(branches.map((b, i) => [b, i]))
+  const days = new Map() // date → { sales, bills, byBranch }
+  const seen = new Set()
+  for (const row of rows) {
+    const date = toThaiDate(row.datetime)
+    let day = days.get(date)
+    if (!day) days.set(date, (day = { sales: 0, bills: 0, byBranch: branches.map(() => 0) }))
+    const amount = lineTotal(row)
+    day.sales += amount
+    day.byBranch[index.get(row.branch)] += amount
+    if (!seen.has(row.order_id)) {
+      seen.add(row.order_id)
+      day.bills++
+    }
+  }
+  if (days.size === 0) return { branches, frames: [] }
+
+  const dates = [...days.keys()].sort()
+  const frames = []
+  const cum = branches.map(() => 0)
+  let sales = 0
+  let bills = 0
+  const end = Date.parse(dates.at(-1))
+  for (let t = Date.parse(dates[0]); t <= end; t += DAY_MS) {
+    const date = new Date(t).toISOString().slice(0, 10)
+    const day = days.get(date)
+    if (day) {
+      day.byBranch.forEach((v, i) => (cum[i] += v))
+      sales += day.sales
+      bills += day.bills
+    }
+    frames.push({ date, daySales: day?.sales ?? 0, sales, bills, byBranch: [...cum] })
+  }
+  return { branches, frames }
+}
+
+/**
+ * Best-selling products by quantity: [{ product_id, name, category, qty }], largest first.
+ * `products` = rows of products.csv; ids missing from it fall back to the id as the name.
+ */
+export function topProducts(rows, products, n = 4) {
+  const qty = new Map()
+  for (const row of rows) qty.set(row.product_id, (qty.get(row.product_id) ?? 0) + Number(row.qty))
+  const info = new Map(products.map((p) => [p.product_id, p]))
+  return [...qty]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([id, q]) => ({ product_id: id, name: info.get(id)?.product_name ?? id, category: info.get(id)?.category ?? '', qty: q }))
+}
+
 // ---- customers (public/customers.csv: 1 row = 1 member) ----
 
 /** Whole days from date a to date b ('YYYY-MM-DD'); positive when b is later. */

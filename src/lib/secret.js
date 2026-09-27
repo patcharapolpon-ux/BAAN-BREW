@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import { flushSync } from 'react-dom'
-import { showToast } from '../components/Toaster'
+import { showToast } from './toast'
 import { prefersReducedMotion } from './motion'
 import { playSound } from './sound'
 
@@ -65,6 +65,7 @@ export function useNeonMode() {
   useEffect(() => {
     let recent = [] // the last 10 keys pressed
     const onKey = (e) => {
+      if (e.defaultPrevented) return // an open dialog already handled this key
       if (e.key === 'Escape' && neon) return setNeon(false)
       // e.code for B/A, so it still works with the keyboard switched to Thai (where B types "ิ").
       const key = e.code === 'KeyB' ? 'b' : e.code === 'KeyA' ? 'a' : e.key

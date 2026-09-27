@@ -125,6 +125,45 @@ const SOUNDS = {
     ;[1047, 1319].forEach((f) => blip(ac, { freq: f, start: 0.3, dur: 0.6, gain: 0.08, type: 'triangle' }))
     swoosh(ac, { from: 4000, to: 8000, dur: 0.5, gain: 0.08, q: 0.8 })
   },
+  // "Meow": a sawtooth that rises then falls, through a vowel-ish band-pass.
+  meow: (ac) => {
+    const t = ac.currentTime
+    const osc = ac.createOscillator()
+    const vowel = ac.createBiquadFilter()
+    const amp = ac.createGain()
+    osc.type = 'sawtooth'
+    const base = 620 + Math.random() * 120
+    osc.frequency.setValueAtTime(base, t)
+    osc.frequency.linearRampToValueAtTime(base * 1.45, t + 0.12)
+    osc.frequency.exponentialRampToValueAtTime(base * 0.75, t + 0.45)
+    vowel.type = 'bandpass'
+    vowel.Q.value = 3
+    vowel.frequency.setValueAtTime(900, t)
+    vowel.frequency.linearRampToValueAtTime(1800, t + 0.15)
+    vowel.frequency.linearRampToValueAtTime(1000, t + 0.45)
+    amp.gain.setValueAtTime(0.0001, t)
+    amp.gain.exponentialRampToValueAtTime(0.22, t + 0.05)
+    amp.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
+    osc.connect(vowel).connect(amp).connect(ac.destination)
+    osc.start(t)
+    osc.stop(t + 0.55)
+  },
+  // Earthquake: long low rumble.
+  rumble: (ac) => {
+    swoosh(ac, { from: 90, to: 50, dur: 1.6, gain: 0.9, q: 0.6, type: 'lowpass' })
+    blip(ac, { freq: 55, to: 35, dur: 1.4, gain: 0.35 })
+  },
+  // Something heavy landing.
+  thud: (ac) => {
+    blip(ac, { freq: 140 + Math.random() * 60, to: 45, dur: 0.18, gain: 0.35 })
+    swoosh(ac, { from: 600, to: 200, dur: 0.12, gain: 0.15, q: 0.8, type: 'lowpass' })
+  },
+  // Game: correct serve (ding) / wrong or missed (buzz).
+  ding: (ac) => {
+    blip(ac, { freq: 1320, dur: 0.25, gain: 0.12, type: 'triangle' })
+    blip(ac, { freq: 1760, start: 0.07, dur: 0.3, gain: 0.1, type: 'triangle' })
+  },
+  wrong: (ac) => blip(ac, { freq: 180, to: 110, dur: 0.28, gain: 0.14, type: 'square' }),
   // Rising arpeggio — entering the secret mode.
   secret: (ac) => {
     ;[392, 494, 587, 784, 988].forEach((f, i) => blip(ac, { freq: f, start: i * 0.07, dur: 0.2, gain: 0.1, type: 'square' }))

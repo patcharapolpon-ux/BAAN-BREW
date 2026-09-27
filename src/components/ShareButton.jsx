@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { downloadShareCard } from '../lib/shareCard'
-import { showToast } from './Toaster'
+import { showToast } from '../lib/toast'
 
 // "แชร์สรุป": draws the Wrapped-style summary card for the current filter and downloads it.
 function ShareButton(props) {

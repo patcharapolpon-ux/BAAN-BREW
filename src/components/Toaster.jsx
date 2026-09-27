@@ -1,29 +1,8 @@
-import { useSyncExternalStore } from 'react'
+import { useToast } from '../lib/toast'
 
-// Tiny toast system: call showToast() from anywhere, <Toaster /> renders the current one.
-// Only one toast at a time — a new one replaces the old, so they never stack up.
-
-let current = null
-let timer = 0
-let id = 0
-const listeners = new Set()
-const emit = () => listeners.forEach((fn) => fn())
-
-export function showToast({ icon, title, text, duration = 2800 }) {
-  current = { id: ++id, icon, title, text }
-  clearTimeout(timer)
-  timer = setTimeout(() => {
-    current = null
-    emit()
-  }, duration)
-  emit()
-}
-
+// Renders the current toast from src/lib/toast.js.
 function Toaster() {
-  const toast = useSyncExternalStore(
-    (fn) => (listeners.add(fn), () => listeners.delete(fn)),
-    () => current,
-  )
+  const toast = useToast()
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4 sm:top-24">
       {toast && (

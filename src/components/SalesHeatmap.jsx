@@ -12,7 +12,7 @@ const hourLabel = (h) => `${String(h).padStart(2, '0')}:00`
  * - The readout line below repeats the hovered value in text (and shows the peak by default),
  *   so nothing depends on color or the mouse alone.
  */
-function SalesHeatmap({ data, show = true }) {
+function SalesHeatmap({ data, show = true, onPlay }) {
   const [hover, setHover] = useState(null) // { day, hour, sales, name }
   const { hours, days, max, peak } = data
   const focus = hover ?? peak
@@ -65,7 +65,8 @@ function SalesHeatmap({ data, show = true }) {
                   key={cell.hour}
                   aria-hidden="true"
                   onMouseEnter={() => setHover({ day: day.weekday, name: day.name, hour: cell.hour, sales: cell.sales })}
-                  className={`heat-cell aspect-square rounded-[4px] sm:aspect-[3/2] sm:rounded-md ${show ? 'is-visible' : ''} ${settled ? 'is-settled' : ''} ${isHover ? 'is-hover' : ''} ${
+                  onClick={onPlay && (() => onPlay({ weekday: day.weekday, hour: cell.hour, sales: cell.sales, level }))}
+                  className={`heat-cell aspect-square ${onPlay ? 'cursor-pointer' : ''} rounded-[4px] sm:aspect-[3/2] sm:rounded-md ${show ? 'is-visible' : ''} ${settled ? 'is-settled' : ''} ${isHover ? 'is-hover' : ''} ${
                     hover && !inCross ? 'is-dim' : ''
                   }`}
                   style={{
@@ -114,6 +115,16 @@ function SalesHeatmap({ data, show = true }) {
             <span className="sr-only">บาริสต้าบอกว่า: </span>
             {baristaLine({ weekday: focus.day ?? focus.weekday, hour: focus.hour, sales: focus.sales, max })}
           </p>
+          {onPlay && (
+            <button
+              type="button"
+              data-sound="select"
+              onClick={() => onPlay({ weekday: peak.weekday, hour: peak.hour, sales: peak.sales, level: 1 })}
+              className="ml-auto shrink-0 self-center rounded-full border border-line bg-surface px-3 py-1.5 text-xs text-ink-2 transition-all hover:-translate-y-0.5 hover:text-accent active:scale-95 sm:text-sm"
+            >
+              🎮 ลองชงช่วงพีค
+            </button>
+          )}
         </div>
       )}
     </div>

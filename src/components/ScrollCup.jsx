@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { useScrollProgress } from '../lib/motion'
 import { playSound } from '../lib/sound'
-import { showToast } from './Toaster'
+import { showToast } from '../lib/toast'
 
 // Reading progress as a coffee cup in the bottom-left corner: the further you scroll, the
 // fuller the cup. At the bottom, foam bubbles rise and (once per visit) a toast says you're done.
