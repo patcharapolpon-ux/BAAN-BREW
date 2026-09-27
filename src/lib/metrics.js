@@ -110,6 +110,14 @@ export function movingAverage(series, window = 7) {
 }
 
 /**
+ * The last `days` entries of a daily series (for the chart's time-range buttons).
+ * `days` null/undefined = the whole series.
+ */
+export function lastDays(series, days) {
+  return days ? series.slice(-days) : series
+}
+
+/**
  * Last `days` days vs the `days` before them, from a dailySales() series:
  * { current, previous, change }. change = (current − previous) ÷ previous,
  * or null when there isn't a full previous period (or it summed to 0).

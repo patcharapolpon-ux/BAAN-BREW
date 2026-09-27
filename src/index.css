@@ -62,17 +62,218 @@ body {
   transition: background-color 200ms ease, color 200ms ease;
 }
 
-/* Gentle entrance for sections; skipped when the user prefers reduced motion. */
+/*
+ * ─── Motion tokens ───────────────────────────────────────────────────────────
+ * One place for timing so everything moves with the same rhythm.
+ * ease-out  = arriving (decelerate)   ease-in = leaving (accelerate, and shorter)
+ * ease-spring overshoots slightly past 1 — a "bouncy" feel for hover lifts.
+ */
+:root {
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in: cubic-bezier(0.5, 0, 0.75, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur-fast: 150ms;
+  --dur: 300ms;
+  --dur-slow: 700ms;
+}
+
+/* Entrance: fade + slide + un-blur. Stagger by setting animation-delay per element. */
 @keyframes rise {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translateY(14px) scale(0.98); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
 }
 .rise {
-  animation: rise 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: rise var(--dur-slow) var(--ease-out) both;
 }
+/* Same animation, but waits until JS adds .is-visible (scroll-reveal via IntersectionObserver). */
+.reveal {
+  opacity: 0;
+}
+.reveal.is-visible {
+  animation: rise var(--dur-slow) var(--ease-out) both;
+}
+
+/* ─── Background: slowly drifting coffee-colored blobs ────────────────────── */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ambient span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(80px);
+  opacity: 0.35;
+  animation: drift 26s ease-in-out infinite alternate;
+}
+.ambient span:nth-child(1) { width: 42vmax; height: 42vmax; top: -12vmax; left: -10vmax; background: var(--accent-soft); }
+.ambient span:nth-child(2) { width: 34vmax; height: 34vmax; bottom: -14vmax; right: -8vmax; background: var(--accent); opacity: 0.14; animation-duration: 32s; animation-delay: -8s; }
+.ambient span:nth-child(3) { width: 24vmax; height: 24vmax; top: 40%; left: 55%; background: var(--accent-soft); opacity: 0.2; animation-duration: 38s; animation-delay: -16s; }
+@keyframes drift {
+  to { transform: translate(6vmax, 4vmax) rotate(40deg) scale(1.12); }
+}
+
+/* ─── Card: hover lift + 3D tilt + spotlight that follows the mouse ───────── */
+/* --rx/--ry/--mx/--my are written by useTilt() in src/lib/motion.js. */
+.card {
+  position: relative;
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--lift, 0));
+  transition:
+    transform var(--dur) var(--ease-out),
+    box-shadow var(--dur) var(--ease-out),
+    border-color var(--dur) var(--ease-out);
+}
+/* Entrance animation must not "hold" transform after it ends, or it would override the tilt. */
+.card.rise {
+  animation-fill-mode: backwards;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card:hover {
+    --lift: -4px;
+    border-color: color-mix(in oklab, var(--accent) 35%, var(--line));
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 22px 40px -18px color-mix(in oklab, var(--accent) 45%, transparent);
+  }
+  .card:hover::before { opacity: 1; }
+  /* The card's icon does a small springy wiggle on hover. */
+  .card:hover .card-icon { transform: rotate(-10deg) scale(1.12); }
+}
+.card-icon {
+  transition: transform 450ms var(--ease-spring);
+}
+/* Pressed feedback for touch too (no hover needed). */
+.card:active { --lift: 0px; transition-duration: var(--dur-fast); }
+
+/* ─── Title: a light sweep that runs across the text every few seconds ────── */
+.shimmer {
+  background: linear-gradient(100deg, var(--ink) 40%, var(--accent) 50%, var(--ink) 60%);
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: shimmer 6s var(--ease-out) infinite;
+}
+@keyframes shimmer {
+  0%, 60% { background-position: 100% 0; }
+  100% { background-position: 0% 0; }
+}
+
+/* ─── Logo: steam rising from the bean ─────────────────────────────────────── */
+.steam path {
+  stroke-dasharray: 10;
+  animation: steam 2.8s ease-in-out infinite;
+}
+.steam path:nth-child(2) { animation-delay: -0.9s; }
+.steam path:nth-child(3) { animation-delay: -1.8s; }
+@keyframes steam {
+  0% { stroke-dashoffset: 10; opacity: 0; transform: translateY(2px); }
+  40% { opacity: 0.9; }
+  100% { stroke-dashoffset: -10; opacity: 0; transform: translateY(-3px); }
+}
+
+/* ─── Logo easter egg: coffee beans burst out on click ────────────────────── */
+.bean-burst {
+  position: fixed;
+  width: 10px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  pointer-events: none;
+  z-index: 50;
+  animation: burst 900ms var(--ease-out) forwards;
+}
+@keyframes burst {
+  from { transform: translate(-50%, -50%) rotate(0deg) scale(1); opacity: 1; }
+  to { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--rot)) scale(0.4); opacity: 0; }
+}
+
+/* ─── Tooltip pops in (scale from the cursor side) ─────────────────────────── */
+@keyframes pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+.pop { animation: pop 180ms var(--ease-out) both; }
+
+/* ─── Segmented controls: the highlight pill slides between options ──────── */
+.seg-pill {
+  transition: transform 380ms var(--ease-spring), width 380ms var(--ease-spring);
+}
+
+/* Theme icon spins in when it becomes active. */
+@keyframes spin-in {
+  from { transform: rotate(-90deg) scale(0.6); opacity: 0.4; }
+  to { transform: none; opacity: 1; }
+}
+.spin-in { animation: spin-in 420ms var(--ease-spring) both; }
+
+/* ─── Theme switch: circular reveal from the clicked button (View Transitions API) ─ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* ─── Skeleton: a light sweep instead of plain pulsing ─────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 25%, color-mix(in oklab, var(--surface-2) 60%, var(--surface)) 50%, var(--surface-2) 75%);
+  background-size: 200% 100%;
+  animation: sweep 1.4s linear infinite;
+}
+@keyframes sweep {
+  to { background-position: -200% 0; }
+}
+
+/* "Live" ring around the latest point in the daily chart. transform-box makes SVG scale around its own center. */
+.pulse-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pulse-ring 2s var(--ease-out) infinite;
+}
+@keyframes pulse-ring {
+  from { transform: scale(1); opacity: 0.55; }
+  to { transform: scale(3.2); opacity: 0; }
+}
+
+/* The live dot waits until the line has finished drawing, then fades in. */
+.pulse-dot {
+  animation: rise 400ms var(--ease-out) 1.6s both;
+}
+
+/* Branch bars: non-hovered bars fade back so the hovered one stands out. */
+.bar-cell {
+  transition: opacity var(--dur) var(--ease-out);
+}
+
+/* Reading progress bar at the very top. */
+.progress {
+  transform-origin: left;
+  transition: transform 80ms linear;
+}
+
+/*
+ * Accessibility: people who turn on "reduce motion" in their OS (motion sickness, vestibular
+ * disorders) get everything instantly — no drifting, tilting, shimmering or bursting.
+ */
 @media (prefers-reduced-motion: reduce) {
-  .rise { animation: none; }
-  body { transition: none; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  .ambient span, .steam path { animation: none !important; }
+  .shimmer { animation: none; color: var(--ink); background: none; }
+  .card { transform: none !important; }
 }
 
 /* Recharts draws a focus outline on click; keyboard focus is handled elsewhere. */
