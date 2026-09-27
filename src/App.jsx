@@ -10,8 +10,11 @@ import PageTabs from './components/PageTabs'
 import Panel from './components/Panel'
 import SiteCredit from './components/SiteCredit'
 import SalesHeatmap from './components/SalesHeatmap'
+import ScrollCup from './components/ScrollCup'
+import ShareButton from './components/ShareButton'
 import SoundToggle from './components/SoundToggle'
 import ThemeToggle from './components/ThemeToggle'
+import Toaster, { showToast } from './components/Toaster'
 import Lab2Page from './lab2/Lab2Page'
 import CustomersPage from './pages/CustomersPage'
 import {
@@ -29,8 +32,10 @@ import {
   salesHeatmap,
   summarize,
 } from './lib/metrics'
+import { fireConfetti } from './lib/confetti'
 import { prefersReducedMotion, useScrolled, useScrollProgress } from './lib/motion'
-import { installClickSounds } from './lib/sound'
+import { countLogoTap, useNeonMode } from './lib/secret'
+import { installClickSounds, playSound, startBeat, stopBeat, useSound } from './lib/sound'
 import { useChartColors, useTheme } from './lib/theme'
 
 const SHORT_DATE = { day: 'numeric', month: 'short', year: '2-digit' }
@@ -39,6 +44,7 @@ const SHORT_DATE = { day: 'numeric', month: 'short', year: '2-digit' }
 // Each bean is a throwaway <span> with its own random direction in CSS variables;
 // the CSS `burst` animation moves it, then we remove it.
 function burstBeans(event) {
+  countLogoTap()
   if (prefersReducedMotion()) return
   const r = event.currentTarget.getBoundingClientRect()
   const cx = r.left + r.width / 2
@@ -94,17 +100,6 @@ function Skeleton() {
       </div>
       <div className="skeleton mt-4 h-80 rounded-2xl sm:mt-6 sm:h-[26rem]" />
     </div>
-  )
-}
-
-function ScrollProgress() {
-  const progress = useScrollProgress()
-  return (
-    <div
-      aria-hidden="true"
-      className="progress fixed inset-x-0 top-0 z-40 h-[3px] bg-gradient-to-r from-accent-soft to-accent"
-      style={{ transform: `scaleX(${progress})` }}
-    />
   )
 }
 
@@ -193,11 +188,22 @@ function App() {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
   const { preference, resolved, setPreference } = useTheme()
-  const colors = useChartColors(resolved)
+  const neon = useNeonMode()
+  // The key just tells the hooks to re-read the CSS colors; neon mode changes them too.
+  const colorKey = neon ? 'neon' : resolved
+  const colors = useChartColors(colorKey)
+  const [soundOn] = useSound()
   const [branch, setBranch] = useState(null) // null = all branches
   const hash = useHash()
 
   useEffect(installClickSounds, [])
+
+  // Secret mode plays its lo-fi loop while it's on (and sound is on).
+  useEffect(() => {
+    if (!neon || !soundOn) return
+    startBeat()
+    return stopBeat
+  }, [neon, soundOn])
 
   useEffect(() => {
     Papa.parse('/sales.csv', {
@@ -227,6 +233,15 @@ function App() {
     }
   }, [rows, branch])
 
+  // Picking the #1 branch (by chip or by bar) gets confetti, a fanfare and a trophy toast.
+  const topBranch = branches[0]
+  useEffect(() => {
+    if (!branch || branch !== topBranch?.branch) return
+    fireConfetti()
+    playSound('fanfare')
+    showToast({ icon: '🏆', title: `สาขา${branch} ขายดีอันดับ 1!`, text: `ครองยอดขาย ${formatPercent(topBranch.share, 0)} ของทุกสาขา` })
+  }, [branch, topBranch])
+
   if (hash === '#lab2') return <Lab2Screen rows={rows} />
   const page = hash === '#customers' ? 'customers' : 'sales'
   const range =
@@ -241,7 +256,6 @@ function App() {
         <span />
         <span />
       </div>
-      <ScrollProgress />
 
       <div className="mx-auto max-w-6xl px-4 pt-6 pb-10 sm:px-8 sm:pt-10 sm:pb-16">
         <Header
@@ -268,7 +282,10 @@ function App() {
         {stats && page === 'sales' && (
           <main>
             <div className="rise mb-4 sm:mb-6" style={{ animationDelay: '80ms' }}>
-              <BranchFilter branches={branches.map((b) => b.branch)} value={branch} onChange={setBranch} />
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <BranchFilter branches={branches.map((b) => b.branch)} value={branch} onChange={setBranch} />
+                <ShareButton branch={branch} range={range} kpi={stats.kpi} topBranch={topBranch} recentChange={stats.recent.change} />
+              </div>
             </div>
 
             <section className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -354,7 +371,9 @@ function App() {
       </div>
 
       <BackToTop />
-      <BeanTrail theme={resolved} />
+      <ScrollCup />
+      <Toaster />
+      <BeanTrail theme={colorKey} />
     </div>
   )
 }

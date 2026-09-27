@@ -333,10 +333,83 @@ body {
 }
 .swap { animation: swap 450ms var(--ease-out); }
 
-/* Reading progress bar at the very top. */
-.progress {
-  transform-origin: left;
-  transition: transform 80ms linear;
+/* ─── Toast: drops in with a little bounce, icon wiggles ─────────────────── */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+.toast-in { animation: toast-in 450ms var(--ease-spring) both; }
+@keyframes toast-icon {
+  0%, 100% { transform: none; }
+  30% { transform: rotate(-14deg) scale(1.2); }
+  60% { transform: rotate(10deg) scale(1.1); }
+}
+.toast-icon { display: inline-block; animation: toast-icon 700ms var(--ease-out) 150ms both; }
+
+/* ─── Barista speech bubble under the heatmap ─────────────────────────────── */
+@keyframes barista-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.barista-in { animation: barista-in 260ms var(--ease-out) both; transform-origin: left bottom; }
+
+/* ─── Scroll cup: coffee level + foam when full ───────────────────────────── */
+.cup-liquid {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transition: transform 120ms linear;
+}
+.cup-foam circle {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes foam {
+  0% { opacity: 0; transform: translateY(4px) scale(0.5); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-8px) scale(1.1); }
+}
+/* bubbles only animate while the cup is full — no hidden infinite work the rest of the time */
+.cup-full .cup-foam circle { animation: foam 1.6s var(--ease-out) infinite; }
+.cup-full .cup-foam circle:nth-child(2) { animation-delay: -0.5s; }
+.cup-full .cup-foam circle:nth-child(3) { animation-delay: -1s; }
+
+/* ─── Secret "2 a.m. café" neon mode (src/lib/secret.js) ──────────────────── */
+/* Same tokens, new values; declared after the themes so it wins over light and dark. */
+:root[data-mode="neon"] {
+  color-scheme: dark;
+  --canvas: #0b0718;
+  --surface: #150f29;
+  --surface-2: #1f1740;
+  --line: #33285e;
+  --ink: #f5f0ff;
+  --ink-2: #cfc3f5;
+  --muted: #9d8fcf;
+  --accent: #ff4fd8;
+  --accent-soft: #2ec5ff;
+  --grid: #1c1536;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 10px 30px -12px rgb(255 79 216 / 0.35);
+  --cat-1: #ff4fd8;
+  --cat-2: #2ec5ff;
+  --cat-3: #b6ff3a;
+  --cat-4: #ffb03a;
+  --cat-5: #9d7bff;
+}
+/* Glowing numbers and headings: a static text-shadow, painted once — no animation cost. */
+:root[data-mode="neon"] :is(.tabular-nums, h2) {
+  text-shadow: 0 0 10px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+:root[data-mode="neon"] .card {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+}
+/* CRT scanlines over everything. Static gradient on one fixed layer. */
+:root[data-mode="neon"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgb(255 255 255 / 0.035) 0 1px, transparent 1px 3px);
 }
 
 /*

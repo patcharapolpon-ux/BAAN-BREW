@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { baristaLine } from '../lib/barista'
 import { formatBaht } from '../lib/metrics'
 
 const hourLabel = (h) => `${String(h).padStart(2, '0')}:00`
@@ -102,6 +103,19 @@ function SalesHeatmap({ data, show = true }) {
           มาก
         </div>
       </div>
+
+      {focus && (
+        // key = the cell → remounts on every new cell, so the bubble pops in again
+        <div key={`${focus.day ?? focus.weekday}-${focus.hour}`} className="barista-in mt-3 flex items-end gap-2">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-surface-2 text-lg ring-1 ring-line" aria-hidden="true">
+            🧑‍🍳
+          </span>
+          <p className="rounded-2xl rounded-bl-sm bg-surface-2 px-3 py-2 text-sm text-ink ring-1 ring-line">
+            <span className="sr-only">บาริสต้าบอกว่า: </span>
+            {baristaLine({ weekday: focus.day ?? focus.weekday, hour: focus.hour, sales: focus.sales, max })}
+          </p>
+        </div>
+      )}
     </div>
   )
 }

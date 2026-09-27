@@ -17,6 +17,7 @@ let ctx = null
 let noise = null
 let idleTimer = 0
 let lastPlay = 0
+let beat = null // { timer, master, step, nextTime } while the secret-mode music plays
 
 function readSaved() {
   try {
@@ -57,12 +58,12 @@ function audio() {
   }
   if (ctx.state === 'suspended') ctx.resume()
   clearTimeout(idleTimer)
-  idleTimer = setTimeout(() => ctx.suspend(), 4000)
+  idleTimer = setTimeout(() => !beat && ctx.suspend(), 4000)
   return ctx
 }
 
 // Short pitched blip with a fast attack and exponential fade — the building block for taps.
-function blip(ac, { freq, to = freq, start = 0, dur = 0.08, gain = 0.2, type = 'sine' }) {
+function blip(ac, { freq, to = freq, start = 0, dur = 0.08, gain = 0.2, type = 'sine', out = ac.destination }) {
   const t = ac.currentTime + start
   const osc = ac.createOscillator()
   const amp = ac.createGain()
@@ -72,26 +73,26 @@ function blip(ac, { freq, to = freq, start = 0, dur = 0.08, gain = 0.2, type = '
   amp.gain.setValueAtTime(0.0001, t)
   amp.gain.exponentialRampToValueAtTime(gain, t + 0.005)
   amp.gain.exponentialRampToValueAtTime(0.0001, t + dur)
-  osc.connect(amp).connect(ac.destination)
+  osc.connect(amp).connect(out)
   osc.start(t)
   osc.stop(t + dur + 0.02)
 }
 
 // Band-passed noise whose filter sweeps from→to: sounds like liquid pouring or air moving.
-function swoosh(ac, { from, to, dur, gain = 0.25, q = 1.2 }) {
-  const t = ac.currentTime
+function swoosh(ac, { from, to, dur, gain = 0.25, q = 1.2, start = 0, type = 'bandpass', out = ac.destination }) {
+  const t = ac.currentTime + start
   const src = ac.createBufferSource()
   const filter = ac.createBiquadFilter()
   const amp = ac.createGain()
   src.buffer = noise
-  filter.type = 'bandpass'
+  filter.type = type
   filter.Q.value = q
   filter.frequency.setValueAtTime(from, t)
   filter.frequency.exponentialRampToValueAtTime(to, t + dur)
   amp.gain.setValueAtTime(0.0001, t)
   amp.gain.exponentialRampToValueAtTime(gain, t + dur * 0.25)
   amp.gain.exponentialRampToValueAtTime(0.0001, t + dur)
-  src.connect(filter).connect(amp).connect(ac.destination)
+  src.connect(filter).connect(amp).connect(out)
   src.start(t)
   src.stop(t + dur + 0.02)
 }
@@ -118,6 +119,16 @@ const SOUNDS = {
   },
   // Upward whoosh — back to top.
   whoosh: (ac) => swoosh(ac, { from: 300, to: 3000, dur: 0.4, gain: 0.22 }),
+  // Ta-da-da-DAAA — the top branch was picked.
+  fanfare: (ac) => {
+    ;[523, 659, 784].forEach((f, i) => blip(ac, { freq: f, start: i * 0.1, dur: 0.12, gain: 0.12, type: 'triangle' }))
+    ;[1047, 1319].forEach((f) => blip(ac, { freq: f, start: 0.3, dur: 0.6, gain: 0.08, type: 'triangle' }))
+    swoosh(ac, { from: 4000, to: 8000, dur: 0.5, gain: 0.08, q: 0.8 })
+  },
+  // Rising arpeggio — entering the secret mode.
+  secret: (ac) => {
+    ;[392, 494, 587, 784, 988].forEach((f, i) => blip(ac, { freq: f, start: i * 0.07, dur: 0.2, gain: 0.1, type: 'square' }))
+  },
 }
 
 export function playSound(name = 'tap') {
@@ -143,4 +154,68 @@ export function installClickSounds() {
   }
   document.addEventListener('pointerdown', onDown, { passive: true })
   return () => document.removeEventListener('pointerdown', onDown)
+}
+
+// ─── Secret-mode music: a small lo-fi loop, scheduled ahead on the audio clock ───
+// A timer wakes every 50 ms and books the notes of the next ~0.2 s on the AudioContext's own
+// clock, so the rhythm stays tight even if the page is busy (the standard Web Audio pattern).
+
+const BPM = 84
+const STEP = 60 / BPM / 4 // one 16th note, in seconds
+const KICK = new Set([0, 7, 10])
+const SNARE = new Set([4, 12])
+// Am7 → Fmaj7 → Cmaj7 → G6, one chord per bar
+const CHORDS = [
+  [220, 261.6, 329.6, 392],
+  [174.6, 220, 261.6, 329.6],
+  [261.6, 329.6, 392, 493.9],
+  [196, 246.9, 293.7, 329.6],
+]
+
+function scheduleStep(ac, step, time) {
+  const { master } = beat
+  const at = time - ac.currentTime
+  const s = step % 16
+  if (KICK.has(s)) blip(ac, { freq: 130, to: 42, start: at, dur: 0.28, gain: 0.5, out: master })
+  if (SNARE.has(s)) swoosh(ac, { from: 1800, to: 1200, dur: 0.16, gain: 0.25, q: 0.7, start: at, out: master })
+  if (s % 2 === 0) swoosh(ac, { from: 9000, to: 7000, dur: 0.04, gain: s % 4 === 2 ? 0.08 : 0.04, q: 1, start: at, type: 'highpass', out: master })
+  if (s === 0 || s === 10) {
+    const chord = CHORDS[Math.floor(step / 16) % CHORDS.length]
+    chord.forEach((f) => blip(ac, { freq: f, start: at, dur: s === 0 ? 1.6 : 0.9, gain: 0.035, type: 'triangle', out: master }))
+  }
+}
+
+export function startBeat() {
+  if (beat || !enabled) return
+  const ac = audio()
+  if (!ac) return
+  // Master volume with a low-pass "warmth" filter; fades in so it doesn't start abruptly.
+  const master = ac.createGain()
+  const warm = ac.createBiquadFilter()
+  warm.type = 'lowpass'
+  warm.frequency.value = 3200
+  master.gain.setValueAtTime(0.0001, ac.currentTime)
+  master.gain.exponentialRampToValueAtTime(0.6, ac.currentTime + 1.2)
+  master.connect(warm).connect(ac.destination)
+  beat = { master, step: 0, nextTime: ac.currentTime + 0.1 }
+  beat.timer = setInterval(() => {
+    while (beat.nextTime < ac.currentTime + 0.2) {
+      scheduleStep(ac, beat.step, beat.nextTime)
+      beat.step++
+      beat.nextTime += STEP
+    }
+  }, 50)
+}
+
+export function stopBeat() {
+  if (!beat) return
+  const { timer, master } = beat
+  clearInterval(timer)
+  beat = null
+  const t = ctx.currentTime
+  master.gain.cancelScheduledValues(t)
+  master.gain.setValueAtTime(master.gain.value || 0.0001, t)
+  master.gain.exponentialRampToValueAtTime(0.0001, t + 0.4)
+  setTimeout(() => master.disconnect(), 600)
+  audio() // restart the idle timer so the context can sleep again
 }

@@ -43,7 +43,7 @@ function switchTheme(next, event, onChange) {
       { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
       { duration: 550, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)', pseudoElement: '::view-transition-new(root)' },
     )
-  })
+  }).catch(() => {}) // hidden tab or interrupted: the change still applies, just without the animation
 }
 
 function ThemeToggle({ preference, onChange }) {
