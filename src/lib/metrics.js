@@ -257,3 +257,22 @@ export function formatPercent(value, decimals = 1, signed = false) {
 export function formatThaiDate(date, options) {
   return new Date(`${date}T00:00:00+07:00`).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...options })
 }
+
+// ---- Lab 2.2 (src/lab2) ----
+// The Lab 2 files expect pre-computed revenue/date/hour on each row and a few older helper names.
+
+/** Adds revenue (qty × unit_price), Thai date "YYYY-MM-DD" and Thai hour to every row. */
+export function prepareRows(rows) {
+  return rows.map((row) => {
+    const t = new Date(Date.parse(row.datetime) + THAI_OFFSET_MS)
+    return { ...row, revenue: lineTotal(row), date: t.toISOString().slice(0, 10), hour: t.getUTCHours() }
+  })
+}
+
+/** Sales per day as [{ date, revenue }] — dailySales() with the field name Lab 2 uses. */
+export function dailyRevenue(rows) {
+  return dailySales(rows).map((d) => ({ date: d.date, revenue: d.sales }))
+}
+
+export const fmtBaht = (value) => formatBaht(value)
+export const fmtShortBaht = (value) => formatBahtCompact(value)

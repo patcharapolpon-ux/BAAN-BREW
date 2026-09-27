@@ -7,6 +7,7 @@ import DonutChart from './components/DonutChart'
 import KpiCard from './components/KpiCard'
 import SalesHeatmap from './components/SalesHeatmap'
 import ThemeToggle from './components/ThemeToggle'
+import Lab2Page from './lab2/Lab2Page'
 import {
   comparePeriods,
   dailySales,
@@ -16,6 +17,7 @@ import {
   formatPercent,
   formatThaiDate,
   movingAverage,
+  prepareRows,
   salesByBranch,
   salesByField,
   salesHeatmap,
@@ -163,12 +165,46 @@ function Header({ subtitle, preference, onThemeChange }) {
   )
 }
 
+// Lab 2.2 page (open with #lab2): bad charts vs fixed charts, side by side.
+function Lab2Screen({ rows }) {
+  const [products, setProducts] = useState(null)
+  useEffect(() => {
+    Papa.parse('/products.csv', {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => setProducts(result.data),
+    })
+  }, [])
+  const prepared = useMemo(() => (rows ? prepareRows(rows) : null), [rows])
+
+  return (
+    <div className="min-h-screen bg-stone-100 text-stone-900">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
+        <a href="#" className="mb-4 inline-block text-sm text-stone-600 underline">← กลับไปแดชบอร์ด</a>
+        {prepared && products ? <Lab2Page rows={prepared} products={products} /> : <p>กำลังโหลดข้อมูล…</p>}
+      </div>
+    </div>
+  )
+}
+
+function useHash() {
+  const [hash, setHash] = useState(window.location.hash)
+  useEffect(() => {
+    const onChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
+  return hash
+}
+
 function App() {
   const [rows, setRows] = useState(null)
   const [error, setError] = useState(null)
   const { preference, resolved, setPreference } = useTheme()
   const colors = useChartColors(resolved)
   const [branch, setBranch] = useState(null) // null = all branches
+  const hash = useHash()
 
   useEffect(() => {
     Papa.parse('/sales.csv', {
@@ -197,6 +233,8 @@ function App() {
       channels: salesByField(picked, 'channel'),
     }
   }, [rows, branch])
+
+  if (hash === '#lab2') return <Lab2Screen rows={rows} />
 
   return (
     <div className="min-h-screen">
@@ -304,7 +342,8 @@ function App() {
             </div>
 
             <footer className="mt-8 text-center text-xs text-muted sm:mt-10">
-              ข้อมูล {formatNumber(rows.length)} รายการ · {branches.length} สาขา · {formatNumber(stats.kpi.dayCount)} วัน
+              ข้อมูล {formatNumber(rows.length)} รายการ · {branches.length} สาขา · {formatNumber(stats.kpi.dayCount)} วัน ·{' '}
+              <a href="#lab2" className="underline">Lab 2.2 ซ่อมกราฟแย่</a>
             </footer>
           </main>
         )}
