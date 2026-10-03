@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from '../lib/motion'
 import { playSound } from '../lib/sound'
 
-// The shop cat. It wanders along the bottom of the screen, sits, sometimes hops onto a KPI
+// The shop pug. It wanders along the bottom of the screen, sits, sometimes hops onto a KPI
 // card for a nap, and falls asleep when nobody has touched the page for a while.
-// Click it and it meows.
+// Click it and it barks.
 //
 // Smoothness: walking is ONE CSS transition on transform (duration = distance ÷ speed), so
 // the browser animates it on the compositor with no JavaScript per frame. JS only wakes up
-// when the cat reaches its target (transitionend) to pick the next thing to do.
+// when the dog reaches its target (transitionend) to pick the next thing to do.
 
 const W = 64
 const H = 48
@@ -17,40 +17,52 @@ const IDLE_SLEEP = 25000 // ms without input → sleep
 
 const rand = (a, b) => a + Math.random() * (b - a)
 
-function CatSvg() {
+function PugSvg() {
   return (
-    <svg viewBox="0 0 64 48" width={W} height={H} aria-hidden="true" className="cat-svg overflow-visible">
-      {/* tail */}
-      <path className="cat-tail" d="M12 30c-6-2-9-9-6-15" fill="none" stroke="#e08a3c" strokeWidth="5" strokeLinecap="round" />
-      {/* back legs, front legs (animated when walking) */}
-      <g fill="#d27a2e">
-        <rect className="cat-leg cat-leg-b1" x="15" y="34" width="5" height="11" rx="2.5" />
-        <rect className="cat-leg cat-leg-b2" x="21" y="34" width="5" height="11" rx="2.5" />
-        <rect className="cat-leg cat-leg-f1" x="38" y="34" width="5" height="11" rx="2.5" />
-        <rect className="cat-leg cat-leg-f2" x="44" y="34" width="5" height="11" rx="2.5" />
+    <svg viewBox="0 0 64 48" width={W} height={H} aria-hidden="true" className="dog-svg overflow-visible">
+      {/* curly tail */}
+      <path className="dog-tail" d="M14 27c-7 0-8-9-2-10 5-1 6 5 1 6" fill="none" stroke="#d6ad76" strokeWidth="4.5" strokeLinecap="round" />
+      {/* back legs, front legs (animated when walking) — short and stubby */}
+      <g fill="#c99a62">
+        <rect className="dog-leg dog-leg-b1" x="15" y="35" width="6" height="10" rx="3" />
+        <rect className="dog-leg dog-leg-b2" x="22" y="35" width="6" height="10" rx="3" />
+        <rect className="dog-leg dog-leg-f1" x="37" y="35" width="6" height="10" rx="3" />
+        <rect className="dog-leg dog-leg-f2" x="44" y="35" width="6" height="10" rx="3" />
       </g>
-      {/* body */}
-      <ellipse cx="31" cy="31" rx="20" ry="10" fill="#e8913f" />
-      <path d="M22 23c2 3 2 7 0 10M30 22c2 3 2 7 0 11" stroke="#c86f25" strokeWidth="2.2" fill="none" strokeLinecap="round" />
+      {/* chunky body */}
+      <ellipse cx="31" cy="30" rx="20" ry="11.5" fill="#e3c08f" />
+      <ellipse cx="33" cy="35" rx="13" ry="4.5" fill="#efd3a8" />
       {/* head */}
-      <g className="cat-head">
-        <path d="M44 14l2-9 6 7M55 12l4-8 2 10" fill="#e8913f" />
-        <circle cx="53" cy="20" r="10" fill="#e8913f" />
-        <path d="M47 11l1.5-4 3 4" fill="#f5b8a0" />
-        <g className="cat-eyes" fill="#2b2118">
-          <ellipse cx="50" cy="19" rx="1.4" ry="2" />
-          <ellipse cx="57" cy="19" rx="1.4" ry="2" />
+      <g className="dog-head">
+        <circle cx="52" cy="21" r="11.5" fill="#e3c08f" />
+        {/* folded black ears */}
+        <path d="M43.5 12.5q-4.5 1-4 7.5 3.5-1.5 6.5-4.5z" fill="#3a2b22" />
+        <path d="M58.5 11q5 .5 5.5 6.5-3.5-.5-6.5-3z" fill="#3a2b22" />
+        {/* forehead wrinkles */}
+        <path d="M48 13.5q4-2 8 0M47.5 16q4.5-1.6 9 0" stroke="#b98a55" strokeWidth="1.1" fill="none" strokeLinecap="round" />
+        {/* black mask */}
+        <ellipse cx="53.5" cy="25.5" rx="7.5" ry="5.5" fill="#3a2b22" />
+        {/* big round eyes with a shine */}
+        <g className="dog-eyes">
+          <circle cx="47.5" cy="20" r="2.8" fill="#1b140f" />
+          <circle cx="57.5" cy="19.5" r="2.8" fill="#1b140f" />
+          <circle cx="48.4" cy="19.1" r="0.9" fill="#fff" />
+          <circle cx="58.4" cy="18.6" r="0.9" fill="#fff" />
         </g>
-        <path className="cat-closed" d="M48.5 19.5q1.5 1.2 3 0M55.5 19.5q1.5 1.2 3 0" stroke="#2b2118" strokeWidth="1.3" fill="none" strokeLinecap="round" />
-        <path d="M53 22.5l-1.2 1.2h2.4z" fill="#f08a8a" />
-        <path d="M53 23.7q-1 1.6-2.6 1M53 23.7q1 1.6 2.6 1" stroke="#2b2118" strokeWidth="0.9" fill="none" strokeLinecap="round" />
-        <path d="M60 22h4M60 24l3.5 1M46 22h-4M46 24l-3.5 1" stroke="#fff" strokeWidth="0.7" opacity="0.8" />
+        <path className="dog-closed" d="M45.5 20.5q2 1.4 4 0M55.5 20q2 1.4 4 0" stroke="#1b140f" strokeWidth="1.3" fill="none" strokeLinecap="round" />
+        {/* nose, mouth, tongue */}
+        <ellipse cx="54" cy="23.2" rx="2.4" ry="1.6" fill="#111" />
+        <path d="M54 24.8q-1.6 2.2-3.6 1.2M54 24.8q1.6 2.2 3.6 1.2" stroke="#111" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+        <path className="dog-tongue" d="M53.4 26.6q.6 3.6 2.4 3.2 1.2-.4.6-3.4z" fill="#f08a8a" />
       </g>
+      {/* red collar with a gold tag */}
+      <path d="M42.5 24.5q2.5 6.5 8.5 8" stroke="#d64545" strokeWidth="3" fill="none" strokeLinecap="round" />
+      <circle cx="47" cy="32.5" r="1.8" fill="#f2c94c" />
     </svg>
   )
 }
 
-function ShopCat() {
+function ShopDog() {
   const reduced = useReducedMotion()
   const el = useRef(null)
   const state = useRef({ x: 80, y: 0, facing: 1, mode: 'sit', timer: 0 })
@@ -143,10 +155,10 @@ function ShopCat() {
     place(rand(20, window.innerWidth * 0.4), floorY())
     s.timer = setTimeout(next, 1500)
 
-    // Scrolling moves the card away from under a napping cat → it hops down.
+    // Scrolling moves the card away from under a napping dog → it hops down.
     const onScroll = () => state.current.mode === 'nap' && jumpDown()
     const onResize = () => (s.mode === 'nap' ? jumpDown() : place(s.x, floorY()))
-    // Any input resets the sleep timer and wakes the cat up.
+    // Any input resets the sleep timer and wakes the dog up.
     const wake = () => {
       clearTimeout(idle.current)
       idle.current = setTimeout(() => {
@@ -177,7 +189,7 @@ function ShopCat() {
   }, [reduced, next, jumpDown, place, setModeBoth])
 
   const pet = () => {
-    playSound('meow')
+    playSound('woof')
     const id = Date.now()
     setHearts((h) => [...h.slice(-4), id])
     setTimeout(() => setHearts((h) => h.filter((x) => x !== id)), 1000)
@@ -190,20 +202,20 @@ function ShopCat() {
         type="button"
         data-sound="none"
         onClick={pet}
-        aria-label="แมวประจำร้าน (กดเพื่อลูบ)"
-        className={`cat cat-${mode} block cursor-pointer focus-visible:outline-2 focus-visible:outline-accent`}
+        aria-label="น้องปั๊กประจำร้าน (กดเพื่อลูบ)"
+        className={`dog dog-${mode} block cursor-pointer focus-visible:outline-2 focus-visible:outline-accent`}
         style={{ transform: `scaleX(${facing})` }}
       >
-        <CatSvg />
+        <PugSvg />
       </button>
       {mode === 'sleep' && (
-        <span className="cat-zzz pointer-events-none absolute -top-5 right-0 text-sm font-semibold text-muted" aria-hidden="true">
+        <span className="dog-zzz pointer-events-none absolute -top-5 right-0 text-sm font-semibold text-muted" aria-hidden="true">
           z<span>z</span>
           <span>Z</span>
         </span>
       )}
       {hearts.map((id) => (
-        <span key={id} className="cat-heart pointer-events-none absolute -top-3 left-1/2 text-lg" aria-hidden="true">
+        <span key={id} className="dog-heart pointer-events-none absolute -top-3 left-1/2 text-lg" aria-hidden="true">
           ❤️
         </span>
       ))}
@@ -211,4 +223,4 @@ function ShopCat() {
   )
 }
 
-export default ShopCat
+export default ShopDog
