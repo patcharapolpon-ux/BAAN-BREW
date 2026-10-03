@@ -718,3 +718,40 @@ body {
   .ticker-track { animation: none; }
   .race-row, .race-bar, .peer-cursor { transition: none; }
 }
+
+/* ─── Stories ────────────────────────────────────────────────────────────── */
+.story-progress { width: 0; animation-name: story-progress; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes story-progress { to { width: 100%; } }
+.story-line { animation: story-in 650ms var(--ease-out) both; }
+@keyframes story-in { from { opacity: 0; transform: translateY(18px) scale(0.97); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.story-bar { transform-origin: left; animation: story-bar 900ms var(--ease-out) both; }
+@keyframes story-bar { from { transform: scaleX(0); } }
+.story-float { bottom: -60px; animation: story-float 7s ease-in-out infinite; }
+@keyframes story-float { 0% { transform: translateY(0) rotate(-10deg); opacity: 0; } 15% { opacity: 0.3; } 85% { opacity: 0.3; } 100% { transform: translateY(-115vh) rotate(25deg); opacity: 0; } }
+/* the Instagram-style gradient ring around the button's play icon */
+.story-ring { background: conic-gradient(#f9ce34, #ee2a7b, #6228d7, #f9ce34); color: white; }
+@media (prefers-reduced-motion: reduce) {
+  .story-line, .story-bar, .story-float { animation: none; }
+}
+
+/* ─── Easter eggs ─────────────────────────────────────────────────────────── */
+.parade-pug { transform: translateX(-120px) scale(var(--s)); transform-origin: bottom; animation: parade 7s linear forwards; }
+@keyframes parade { to { transform: translateX(calc(100vw + 40px)) scale(var(--s)); } }
+.parade-pug .dog-svg { animation-duration: 140ms; }
+
+.lights-out { background: radial-gradient(circle 130px at var(--fx, -500px) var(--fy, -500px), transparent 0, rgb(0 0 0 / 0.55) 110px, rgb(0 0 0 / 0.97) 150px); }
+.light-switch { animation: welcome-pop 400ms var(--ease-spring) both; }
+
+.splash-drop { position: fixed; z-index: 70; pointer-events: none; font-size: 18px; animation: splash 700ms var(--ease-out) forwards; }
+@keyframes splash { to { transform: translate(var(--dx), calc(var(--dy) + 60px)); opacity: 0; } }
+
+.snowflake { position: absolute; top: -20px; color: white; opacity: 0.8; text-shadow: 0 0 4px rgb(0 0 0 / 0.3); animation: snow linear infinite; }
+@keyframes snow { to { transform: translate(40px, 105vh) rotate(360deg); } }
+.bat { position: absolute; left: -40px !important; font-size: 22px; animation: bat linear infinite; }
+@keyframes bat { 0% { transform: translateX(0) translateY(0); } 25% { transform: translateX(28vw) translateY(-30px); } 50% { transform: translateX(55vw) translateY(10px); } 75% { transform: translateX(80vw) translateY(-20px); } 100% { transform: translateX(110vw) translateY(0); } }
+
+.dog-hat { transform: rotate(-12deg); }
+.dog-sleep .dog-hat, .dog-nap .dog-hat { top: 0; }
+
+.credit-shine { background: linear-gradient(90deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: credit-shine 2.5s linear infinite; }
+@keyframes credit-shine { to { background-position: 300% 0; } }

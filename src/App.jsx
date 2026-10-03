@@ -7,6 +7,7 @@ import BranchMap3D from './components/BranchMap3D'
 import BranchSalesChart from './components/BranchSalesChart'
 import DailySalesChart from './components/DailySalesChart'
 import DonutChart from './components/DonutChart'
+import Eggs from './components/Eggs'
 import KpiCard from './components/KpiCard'
 import PageTabs from './components/PageTabs'
 import Panel from './components/Panel'
@@ -16,6 +17,7 @@ import ScrollCup from './components/ScrollCup'
 import ShopDog from './components/ShopDog'
 import ShopSign from './components/ShopSign'
 import ShareButton from './components/ShareButton'
+import { StoriesButton } from './components/Stories'
 import SoundToggle from './components/SoundToggle'
 import ThemeToggle from './components/ThemeToggle'
 import ToyBoundary from './components/ToyBoundary'
@@ -37,8 +39,10 @@ import {
   salesByField,
   salesHeatmap,
   summarize,
+  thaiBahtText,
 } from './lib/metrics'
 import { fireConfetti } from './lib/confetti'
+import { useGlobalEggs } from './lib/eggs'
 import { useDaypart } from './lib/daypart'
 import { toggleQuake } from './lib/earthquake'
 import { prefersReducedMotion, useScrolled, useScrollProgress } from './lib/motion'
@@ -247,6 +251,7 @@ function App() {
   const hash = useHash()
 
   useEffect(installClickSounds, [])
+  useGlobalEggs()
 
   // Secret mode plays its lo-fi loop while it's on (and sound is on).
   useEffect(() => {
@@ -277,6 +282,7 @@ function App() {
     const picked = filterByBranch(rows, branch)
     const daily = dailySales(picked)
     return {
+      picked,
       kpi: summarize(picked),
       daily: movingAverage(daily, 7),
       recent: comparePeriods(daily, 30),
@@ -370,6 +376,7 @@ function App() {
                 <BranchFilter branches={branches.map((b) => b.branch)} value={branch} onChange={setBranch} />
                 <div className="flex gap-2">
                   <TimeMachineButton rows={rows} colors={colors} />
+                  <StoriesButton rows={stats.picked} branch={branch} range={range} kpi={stats.kpi} topBranch={topBranch} recentChange={stats.recent.change} />
                   <ShareButton branch={branch} range={range} kpi={stats.kpi} topBranch={topBranch} recentChange={stats.recent.change} />
                 </div>
               </div>
@@ -382,6 +389,10 @@ function App() {
                 value={stats.kpi.totalSales}
                 format={(v) => formatBaht(v)}
                 hint={`เฉลี่ย ${formatBaht(stats.kpi.salesPerDay)} / วัน`}
+                onTripleClick={() => {
+                  playSound('kaching')
+                  showToast({ icon: '🧾', title: 'อ่านแบบเช็คธนาคาร', text: thaiBahtText(stats.kpi.totalSales), duration: 6000 })
+                }}
                 spark={stats.daily.slice(-30).map((d) => d.salesAvg ?? d.sales)}
                 trend={
                   stats.recent.change != null && {
@@ -432,7 +443,7 @@ function App() {
             </Panel>
 
             <Panel title="แผนที่สาขา 3D" subtitle="แก้วกาแฟยักษ์ตั้งตามพิกัดจริง ยิ่งสูงยิ่งขายดี · ชี้ดูยอด คลิกแก้วเพื่อกรองทั้งหน้า">
-              {(inView) => <BranchMap3D branches={branches} colors={colors} show={inView} selected={branch} onSelect={setBranch} />}
+              {(inView) => <BranchMap3D rows={rows} branches={branches} colors={colors} show={inView} selected={branch} onSelect={setBranch} />}
             </Panel>
 
             <Panel
@@ -478,6 +489,7 @@ function App() {
           <BaristaGame rows={rows} slot={gameSlot} onClose={closeGame} />
         </ToyBoundary>
       )}
+      <Eggs />
       <Toaster />
       <BeanTrail theme={colorKey} />
     </div>

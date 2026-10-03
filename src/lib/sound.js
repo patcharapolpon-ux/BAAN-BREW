@@ -238,6 +238,9 @@ function scheduleStep(ac, step, time) {
   }
 }
 
+/** Is the lo-fi loop playing right now? (Stories only stops it if it started it.) */
+export const isBeatPlaying = () => beat !== null
+
 export function startBeat() {
   if (beat || !enabled) return
   const ac = audio()

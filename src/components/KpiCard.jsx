@@ -57,7 +57,7 @@ const ICONS = {
 // `spark` = optional list of numbers for a mini trend line under the value.
 // `trend` is an optional { value, text, label }: value is the signed ratio (arrow direction).
 // Arrow + words, never color alone.
-function KpiCard({ label, value, format, hint, trend, icon, spark, delay = 0 }) {
+function KpiCard({ label, value, format, hint, trend, icon, spark, delay = 0, onTripleClick }) {
   const shown = useCountUp(value, { delay: delay + 200 })
   const tiltRef = useTilt()
 
@@ -78,7 +78,10 @@ function KpiCard({ label, value, format, hint, trend, icon, spark, delay = 0 }) 
         )}
       </div>
       {/* Screen readers get the final value once; the ticking digits are hidden from them. */}
-      <p className="mt-2 text-2xl font-light tracking-tight text-ink tabular-nums sm:mt-1 sm:text-4xl">
+      <p
+        className="mt-2 text-2xl font-light tracking-tight text-ink tabular-nums sm:mt-1 sm:text-4xl"
+        onClick={onTripleClick && ((e) => e.detail === 3 && onTripleClick())}
+      >
         <span aria-hidden="true">{format(shown)}</span>
         <span className="sr-only">{format(value)}</span>
       </p>

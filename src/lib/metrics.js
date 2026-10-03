@@ -307,6 +307,43 @@ export function topProducts(rows, products, n = 4) {
     .map(([id, q]) => ({ product_id: id, name: info.get(id)?.product_name ?? id, category: info.get(id)?.category ?? '', qty: q }))
 }
 
+/**
+ * Everything the "Stories" recap needs, in one pass over the data:
+ * { kpi, first, last, cups, bestDay, topMenu, peak, weekdays, branches, biggestBill, topPayment }.
+ * cups = Σ qty (one cup per item); bestDay = { date, sales }; topMenu = top 3 by qty;
+ * weekdays = sales per weekday, best first; biggestBill = { order_id, total, items, branch, date }.
+ */
+export function storyFacts(rows, products) {
+  const daily = dailySales(rows)
+  const heat = salesHeatmap(rows)
+  const bills = new Map()
+  let cups = 0
+  for (const row of rows) {
+    cups += Number(row.qty)
+    let bill = bills.get(row.order_id)
+    if (!bill) bills.set(row.order_id, (bill = { order_id: row.order_id, total: 0, items: 0, branch: row.branch, date: toThaiDate(row.datetime) }))
+    bill.total += lineTotal(row)
+    bill.items += Number(row.qty)
+  }
+  const biggestBill = [...bills.values()].reduce((a, b) => (b.total > a.total ? b : a), { total: 0 })
+  const weekdays = heat.days
+    .map((d) => ({ weekday: d.weekday, name: d.name, sales: d.cells.reduce((sum, c) => sum + c.sales, 0) }))
+    .sort((a, b) => b.sales - a.sales)
+  return {
+    kpi: summarize(rows),
+    first: daily[0]?.date ?? null,
+    last: daily.at(-1)?.date ?? null,
+    cups,
+    bestDay: daily.reduce((a, b) => (b.sales > a.sales ? b : a), { date: null, sales: 0 }),
+    topMenu: topProducts(rows, products, 3),
+    peak: heat.peak,
+    weekdays,
+    branches: salesByBranch(rows),
+    biggestBill,
+    topPayment: salesByField(rows, 'payment_method')[0] ?? null,
+  }
+}
+
 // ---- customers (public/customers.csv: 1 row = 1 member) ----
 
 /** Whole days from date a to date b ('YYYY-MM-DD'); positive when b is later. */
@@ -481,6 +518,42 @@ export function formatPercent(value, decimals = 1, signed = false) {
 /** Thai-locale date for a "YYYY-MM-DD" Thai calendar date, e.g. { day, month: 'short', year: '2-digit' } → "1 เม.ย. 68". */
 export function formatThaiDate(date, options) {
   return new Date(`${date}T00:00:00+07:00`).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok', ...options })
+}
+
+const THAI_DIGITS = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า']
+const THAI_PLACES = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน']
+
+// 0–999,999 in Thai words. Special cases: 1 in the tens is "สิบ" (not หนึ่งสิบ), 2 in the
+// tens is "ยี่สิบ", and 1 in the units after anything else is "เอ็ด" (สิบเอ็ด, หนึ่งร้อยเอ็ด).
+function thaiUnderMillion(n) {
+  const digits = String(n).split('').map(Number).reverse()
+  let text = ''
+  digits.forEach((d, place) => {
+    if (d === 0) return
+    let word = THAI_DIGITS[d]
+    if (place === 1 && d === 1) word = ''
+    else if (place === 1 && d === 2) word = 'ยี่'
+    else if (place === 0 && d === 1 && n > 9) word = 'เอ็ด'
+    text = word + THAI_PLACES[place] + text
+  })
+  return text
+}
+
+function thaiNumberText(n) {
+  if (n === 0) return 'ศูนย์'
+  if (n < 1e6) return thaiUnderMillion(n)
+  const rest = n % 1e6
+  return thaiNumberText(Math.floor(n / 1e6)) + 'ล้าน' + (rest ? thaiUnderMillion(rest) : '')
+}
+
+/** Amount as it's written on a Thai cheque: 4463443 → "สี่ล้านสี่แสนหกหมื่นสามพันสี่ร้อยสี่สิบสามบาทถ้วน". */
+export function thaiBahtText(value) {
+  const satang = Math.round(Math.abs(value) * 100)
+  const baht = Math.floor(satang / 100)
+  const rest = satang % 100
+  const sign = value < 0 ? 'ลบ' : ''
+  if (rest === 0) return `${sign}${thaiNumberText(baht)}บาทถ้วน`
+  return `${sign}${baht ? thaiNumberText(baht) + 'บาท' : ''}${thaiNumberText(rest)}สตางค์`
 }
 
 // ---- Lab 2.2 (src/lab2) ----

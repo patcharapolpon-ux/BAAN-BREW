@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useReducedMotion } from '../lib/motion'
+import { currentSeason, rapidClicks, SEASON_HAT } from '../lib/eggs'
 import { playSound } from '../lib/sound'
+import { showToast } from '../lib/toast'
 
 // The shop pug. It wanders along the bottom of the screen, sits, sometimes hops onto a KPI
 // card for a nap, and falls asleep when nobody has touched the page for a while.
@@ -14,6 +16,7 @@ const W = 64
 const H = 48
 const SPEED = 60 // px per second
 const IDLE_SLEEP = 25000 // ms without input → sleep
+const HAT = SEASON_HAT[currentSeason()] // seasonal hat, or undefined most of the year
 
 const rand = (a, b) => a + Math.random() * (b - a)
 
@@ -188,7 +191,35 @@ function ShopDog() {
     }
   }, [reduced, next, jumpDown, place, setModeBoth])
 
+  // Easter egg: 10 pets in 5 seconds → zoomies (sprints back and forth, then flops down).
+  const [zoomies] = useState(() => rapidClicks(10, 5000, () => {
+    const s = state.current
+    clearTimeout(s.timer)
+    showToast({ icon: '🌀', title: 'น้องปั๊กพลังล้น!', text: 'ลูบเยอะไป ตื่นเต้นจนวิ่งรอบร้าน' })
+    const edges = [window.innerWidth - W - 4, 4, window.innerWidth - W - 4, 4, window.innerWidth / 2]
+    setModeBoth('walk')
+    let at = 0
+    edges.forEach((x, i) => {
+      const from = i === 0 ? s.x : edges[i - 1]
+      const ms = Math.max(250, Math.abs(x - from) / 2.2)
+      s.timer = setTimeout(() => {
+        setFacing(x > (i === 0 ? s.x : edges[i - 1]) ? 1 : -1)
+        place(x, floorY(), ms, 'ease-in-out')
+        if (i % 2 === 0) playSound('woof')
+      }, at)
+      at += ms
+    })
+    s.timer = setTimeout(() => {
+      setModeBoth('sleep')
+      s.timer = setTimeout(() => {
+        setModeBoth('sit')
+        s.timer = setTimeout(next, 1500)
+      }, 4000)
+    }, at + 50)
+  }))
+
   const pet = () => {
+    zoomies()
     playSound('woof')
     const id = Date.now()
     setHearts((h) => [...h.slice(-4), id])
@@ -203,10 +234,15 @@ function ShopDog() {
         data-sound="none"
         onClick={pet}
         aria-label="น้องปั๊กประจำร้าน (กดเพื่อลูบ)"
-        className={`dog dog-${mode} block cursor-pointer focus-visible:outline-2 focus-visible:outline-accent`}
+        className={`dog dog-${mode} relative block cursor-pointer focus-visible:outline-2 focus-visible:outline-accent`}
         style={{ transform: `scaleX(${facing})` }}
       >
         <PugSvg />
+        {HAT && (
+          <span className="dog-hat pointer-events-none absolute -top-3 left-9 text-lg" aria-hidden="true">
+            {HAT}
+          </span>
+        )}
       </button>
       {mode === 'sleep' && (
         <span className="dog-zzz pointer-events-none absolute -top-5 right-0 text-sm font-semibold text-muted" aria-hidden="true">
