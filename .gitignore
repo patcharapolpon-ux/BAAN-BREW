@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase (Lab 3) — ห้าม commit คีย์
+.env
+.env.local
+secrets/
+import-summary.json
+.firebase/
+*-firebase-adminsdk-*.json
+
+# Local tool settings
+.claude/
+.obsidian/
