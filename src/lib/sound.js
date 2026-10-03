@@ -151,6 +151,16 @@ const SOUNDS = {
       osc.stop(t + 0.18)
     }
   },
+  // Cash register: drawer clunk, then a bright two-bell "ka-CHING".
+  kaching: (ac) => {
+    swoosh(ac, { from: 900, to: 300, dur: 0.08, gain: 0.2, q: 0.9, type: 'lowpass' })
+    blip(ac, { freq: 2093, start: 0.06, dur: 0.18, gain: 0.08, type: 'triangle' })
+    ;[2637, 3136, 3951].forEach((f) => blip(ac, { freq: f, start: 0.13, dur: 0.55, gain: 0.06, type: 'triangle' }))
+  },
+  // The pug eating: three quick crunchy noise bites.
+  chomp: (ac) => {
+    for (let i = 0; i < 3; i++) swoosh(ac, { from: 2200, to: 700, dur: 0.07, gain: 0.25, q: 1.5, start: i * 0.11 })
+  },
 
   // Earthquake: long low rumble.
   rumble: (ac) => {

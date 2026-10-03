@@ -47,7 +47,7 @@ const ERROR_TEXT = {
 }
 const errorText = (e) => ERROR_TEXT[e.code] ?? `โหลดข้อมูลไม่สำเร็จ: ${e.message}`
 
-const AUTH_ERRORS = {
+export const AUTH_ERRORS = {
   'auth/unauthorized-domain': 'เว็บนี้ยังไม่ได้รับอนุญาตให้ล็อกอิน เพิ่มโดเมนใน Firebase console → Authentication → Settings → Authorized domains',
   'auth/operation-not-allowed': 'ยังไม่ได้เปิดล็อกอินด้วย Google ใน Firebase console → Authentication → Sign-in method',
   'auth/popup-blocked': 'เบราว์เซอร์บล็อกหน้าต่างล็อกอิน อนุญาตป๊อปอัปสำหรับเว็บนี้แล้วลองใหม่',
@@ -65,7 +65,7 @@ function GoogleIcon() {
   )
 }
 
-function SignInCard({ onSignIn, error }) {
+export function SignInCard({ onSignIn, error }) {
   return (
     <div className="rise mx-auto max-w-md rounded-2xl border border-line bg-surface/85 p-6 text-center shadow-card backdrop-blur-sm sm:p-8">
       <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-surface-2 text-2xl" aria-hidden="true">
@@ -91,7 +91,7 @@ function SignInCard({ onSignIn, error }) {
   )
 }
 
-function UserChip({ user, onSignOut }) {
+export function UserChip({ user, onSignOut }) {
   const name = user.displayName || user.email
   return (
     <div className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-1 pl-1 shadow-card">

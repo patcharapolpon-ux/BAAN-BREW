@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react
 import BaristaGame from './components/BaristaGame'
 import BeanTrail from './components/BeanTrail'
 import BranchFilter from './components/BranchFilter'
+import BranchMap3D from './components/BranchMap3D'
 import BranchSalesChart from './components/BranchSalesChart'
 import DailySalesChart from './components/DailySalesChart'
 import DonutChart from './components/DonutChart'
@@ -188,6 +189,7 @@ const firebaseTab = (load) =>
   )
 const LiveTab = firebaseTab(() => import('./lab3/LiveTab'))
 const RulesTester = firebaseTab(() => import('./lab3/RulesTester'))
+const PlayTab = firebaseTab(() => import('./play/PlayTab'))
 
 // The course pages (Lab 2.2, Lab 3) are styled for a light page (white cards, stone text),
 // so they keep their own light panel even when the dashboard is in dark or neon mode.
@@ -293,9 +295,9 @@ function App() {
     showToast({ icon: '🏆', title: `สาขา${branch} ขายดีอันดับ 1!`, text: `ครองยอดขาย ${formatPercent(topBranch.share, 0)} ของทุกสาขา` })
   }, [branch, topBranch])
 
-  const PAGE_BY_HASH = { '#customers': 'customers', '#lab2': 'lab2', '#live': 'live', '#rules': 'rules' }
+  const PAGE_BY_HASH = { '#customers': 'customers', '#lab2': 'lab2', '#live': 'live', '#rules': 'rules', '#play': 'play' }
   const page = PAGE_BY_HASH[hash] ?? 'sales'
-  const usesCsv = page !== 'live' && page !== 'rules'
+  const usesCsv = page !== 'live' && page !== 'rules' && page !== 'play'
   const range =
     stats?.daily.length > 0
       ? `${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
@@ -328,6 +330,8 @@ function App() {
               ? 'ยอดขายสดจาก Firestore'
               : page === 'rules'
               ? 'ทดสอบ Security Rules'
+              : page === 'play'
+              ? 'ร้านจำลองสด · เล่นพร้อมเพื่อนได้'
               : `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${range}`
           }
         />
@@ -352,6 +356,12 @@ function App() {
         )}
 
         {page === 'rules' && <CoursePanel><RulesTester /></CoursePanel>}
+
+        {page === 'play' && (
+          <Suspense fallback={<p className="text-muted">กำลังโหลด…</p>}>
+            <PlayTab colors={colors} />
+          </Suspense>
+        )}
 
         {stats && page === 'sales' && (
           <main>
@@ -419,6 +429,10 @@ function App() {
               {(inView) => (
                 <BranchSalesChart data={branches} colors={colors} show={inView} selected={branch} onSelect={setBranch} />
               )}
+            </Panel>
+
+            <Panel title="แผนที่สาขา 3D" subtitle="แก้วกาแฟยักษ์ตั้งตามพิกัดจริง ยิ่งสูงยิ่งขายดี · ชี้ดูยอด คลิกแก้วเพื่อกรองทั้งหน้า">
+              {(inView) => <BranchMap3D branches={branches} colors={colors} show={inView} selected={branch} onSelect={setBranch} />}
             </Panel>
 
             <Panel

@@ -649,3 +649,72 @@ body {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: none; }
 }
+
+/* ─── Play shop (#play) ───────────────────────────────────────────────────── */
+/* A cup flies in from the left on an arc and out the right; --y and --arc are random per cup. */
+.fly-cup {
+  position: fixed;
+  left: 0;
+  top: var(--y);
+  z-index: 60;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  animation: fly-x 2.2s cubic-bezier(0.45, 0.05, 0.55, 0.95) forwards;
+}
+.fly-cup-icon { font-size: 2.2rem; display: inline-block; animation: fly-arc 2.2s ease-in-out forwards, fly-spin 0.5s ease-in-out infinite alternate; }
+.fly-cup-tag {
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--surface);
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.35);
+  animation: fly-arc 2.2s ease-in-out forwards;
+}
+@keyframes fly-x { from { transform: translateX(-160px); } to { transform: translateX(calc(100vw + 40px)); } }
+@keyframes fly-arc { 0%, 100% { translate: 0 0; } 50% { translate: 0 var(--arc); } }
+@keyframes fly-spin { from { rotate: -14deg; } to { rotate: 14deg; } }
+
+/* News-ticker strip of recent orders; the list is rendered twice so -50% loops seamlessly. */
+.ticker { mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+.ticker-track { animation: ticker 40s linear infinite; padding-left: 1rem; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker { to { transform: translateX(-50%); } }
+
+/* Branch race: rows slide past each other (spring), bars grow. */
+.race-row { transition: transform 700ms var(--ease-spring); }
+.race-bar { transition: width 700ms var(--ease-out); }
+
+/* Other people's cursors glide between the 0.4 s position updates. */
+.peer-cursor { transition: left 420ms linear, top 420ms linear; }
+.peer-tag { background: var(--peer); }
+.peer-bark { animation: welcome-pop 300ms var(--ease-spring) both; }
+
+/* The pug pet: big, a bit bigger every level; hops while eating; turns grey when sulking. */
+.pug-pet { transform: scale(calc(2.4 * var(--pug-scale, 1))); transition: transform 600ms var(--ease-spring), filter 600ms; }
+.pug-eating { animation: pug-hop 350ms var(--ease-out) 2; }
+@keyframes pug-hop { 50% { translate: 0 -6px; } }
+.pug-sulk { filter: saturate(0.3); }
+.pug-hungry .dog-tail { animation-duration: 2.4s !important; }
+.pug-happy .dog-tail { animation-duration: 0.25s !important; }
+.pug-snack { animation: pug-snack 900ms cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+@keyframes pug-snack { from { transform: translate(-50%, -10px) rotate(0); opacity: 1; } 85% { opacity: 1; } to { transform: translate(-50%, 90px) rotate(260deg); opacity: 0; } }
+.pug-bubble { animation: welcome-pop 300ms var(--ease-spring) both; }
+
+.sell-btn:active { box-shadow: 0 0 0 6px color-mix(in oklab, var(--accent) 25%, transparent); }
+.bot-dot::before { content: '●'; color: #10b981; margin-right: 0.35rem; animation: zzz 1.2s ease-in-out infinite; display: inline-block; }
+
+/* 3D branch map: tooltip that follows the hovered building. */
+.map3d { touch-action: pan-y; }
+.map3d canvas { display: block; cursor: grab; }
+.map3d canvas:active { cursor: grabbing; }
+.map3d-tip { transition: opacity 150ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+  .race-row, .race-bar, .peer-cursor { transition: none; }
+}

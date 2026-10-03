@@ -17,7 +17,7 @@ const IDLE_SLEEP = 25000 // ms without input → sleep
 
 const rand = (a, b) => a + Math.random() * (b - a)
 
-function PugSvg() {
+export function PugSvg() {
   return (
     <svg viewBox="0 0 64 48" width={W} height={H} aria-hidden="true" className="dog-svg overflow-visible">
       {/* curly tail */}

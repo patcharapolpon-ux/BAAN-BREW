@@ -8,6 +8,7 @@ const PAGES = [
   { value: 'lab2', label: 'Lab 2.2', hash: '#lab2' },
   { value: 'live', label: 'สด', hash: '#live' },
   { value: 'rules', label: 'ทดสอบ Rules', hash: '#rules' },
+  { value: 'play', label: '🎮 ร้านจำลอง', hash: '#play' },
 ]
 
 function PageTabs({ value }) {
