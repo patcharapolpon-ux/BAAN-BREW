@@ -1,12 +1,76 @@
 rules_version = '2';
 
-// Lab 3.3 · เขียน Security Rules ด้วย Prompt 3.3B ใน PROMPTS_LAB3.md
-// ตอนนี้ปิดทุกอย่างไว้ (ปลอดภัย แต่เว็บใช้งานไม่ได้)
-// เป้าหมาย: แท็บ "ทดสอบ Rules" ได้ ✅ ทุกข้อ และฟอร์มบันทึกยอดขายยังใช้งานได้
+// Lab 3.3 · Security Rules ของบ้านบรู (Prompt 3.3B)
+// หลักคิด: หน้าเว็บกับ web config ใครก็เห็นได้ ความปลอดภัยจริงจึงอยู่ที่นี่ ไม่ใช่ในโค้ด React
+// สคริปต์ seed / verify-import ใช้ service account (Admin SDK) ซึ่งข้าม rules ได้ จึงยังนำเข้าข้อมูลได้ตามปกติ
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    // ล็อกอินแล้วหรือยัง (request.auth จะเป็น null ถ้ายังไม่ล็อกอิน)
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // เมนู: พนักงานที่ล็อกอินอ่านได้ แต่ห้ามแก้จากหน้าเว็บ (กันการแก้ราคาเมนู)
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    // สาขา: อ่านได้เมื่อล็อกอิน แก้จากหน้าเว็บไม่ได้
+    match /branches/{branchId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /sales/{saleId} {
+      // อ่านยอดขายได้เมื่อล็อกอิน
+      allow read: if signedIn();
+
+      // บันทึกยอดขายใหม่ได้เมื่อล็อกอิน และเอกสารต้องหน้าตาเหมือนที่ buildSale() สร้างทุกอย่าง
+      allow create: if signedIn() && isValidSale(request.resource.data);
+
+      // ยอดขายที่บันทึกแล้วห้ามแก้และห้ามลบ (กันการโกงยอดย้อนหลัง)
+      allow update, delete: if false;
+
+      function isValidSale(sale) {
+        // ฟิลด์ที่ buildSale() สร้าง + created_at ที่ใส่ตอนบันทึก
+        let fields = ['order_id', 'datetime', 'date', 'hour', 'branch', 'product_id', 'qty', 'unit_price',
+                      'revenue', 'customer_id', 'payment_method', 'channel', 'source', 'created_by', 'created_at'];
+        // ราคาจริงของเมนูนี้ อ่านจาก products/{product_id}
+        let product = get(/databases/$(database)/documents/products/$(sale.product_id));
+
+        // ฟิลด์ต้องครบ (hasAll) และห้ามมีฟิลด์เกิน เช่น แอบใส่ discount (hasOnly)
+        return sale.keys().hasAll(fields) && sale.keys().hasOnly(fields)
+          // ต้องมาจากฟอร์มบนเว็บ และผู้บันทึกต้องเป็นคนที่ล็อกอินอยู่จริง (ปลอมตัวเป็นคนอื่นไม่ได้)
+          && sale.source == 'web'
+          && sale.created_by == request.auth.uid
+          // เวลาบันทึกต้องเป็นเวลาของเซิร์ฟเวอร์ (serverTimestamp) ใส่เวลาย้อนหลังเองไม่ได้
+          && sale.created_at == request.time
+          // สาขาต้องเป็น 1 ใน 5 สาขาจริง
+          && sale.branch in ['สยาม', 'สีลม', 'อารีย์', 'บางนา', 'มหาวิทยาลัย']
+          // วิธีชำระเงินต้องเป็น 1 ใน 5 แบบที่ร้านรับ
+          && sale.payment_method in ['QR พร้อมเพย์', 'บัตรเครดิต', 'เงินสด', 'LINE MAN', 'Grab']
+          // ช่องทางต้องเป็นหน้าร้านหรือเดลิเวอรีเท่านั้น
+          && sale.channel in ['หน้าร้าน', 'เดลิเวอรี']
+          // จำนวนเป็นจำนวนเต็ม 1–20 (กันจำนวนติดลบหรือศูนย์)
+          && sale.qty is int && sale.qty >= 1 && sale.qty <= 20
+          // ชั่วโมงเป็นจำนวนเต็ม 0–23
+          && sale.hour is int && sale.hour >= 0 && sale.hour <= 23
+          // เมนูต้องมีอยู่จริง และราคาต่อชิ้นต้องตรงกับราคาในเมนู (กันการตั้งราคาเอง เช่น ลาเต้ ฿1)
+          && sale.product_id is string
+          && product != null
+          && sale.unit_price == product.data.price
+          // ยอดรวมต้องเท่ากับ จำนวน × ราคา พอดี
+          && sale.revenue == sale.qty * sale.unit_price
+          // วันที่รูปแบบ YYYY-MM-DD และเวลาเป็นเวลาไทย YYYY-MM-DDTHH:MM:SS+07:00
+          && sale.date is string && sale.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+          && sale.datetime is string && sale.datetime.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[+]07:00$')
+          // เลขบิลเป็นข้อความ
+          && sale.order_id is string
+          // รหัสสมาชิกว่างได้ (null = ลูกค้า walk-in) ถ้าใส่ต้องเป็น C ตามด้วยเลข 5 หลัก
+          && (sale.customer_id == null || (sale.customer_id is string && sale.customer_id.matches('^C[0-9]{5}$')));
+      }
     }
   }
 }
