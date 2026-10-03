@@ -26,6 +26,10 @@ import {
   salesByBranch,
   summarize,
 } from '../lib/metrics'
+import { fireConfetti } from '../lib/confetti'
+import { prefersReducedMotion } from '../lib/motion'
+import { playSound } from '../lib/sound'
+import { showToast } from '../lib/toast'
 import { useIsMobile } from '../lib/useIsMobile'
 
 const RANGES = [
@@ -106,22 +110,61 @@ function UserChip({ user, onSignOut }) {
   )
 }
 
+// Shown for a moment right after signing in (not when the page opens already signed in).
+const WELCOME_MS = 2400
+
+function WelcomeSplash({ user }) {
+  const name = user.displayName || user.email
+  return (
+    <div className="welcome-splash" role="status" aria-live="polite">
+      <div className="flex flex-col items-center px-6 text-center">
+        <div className="relative">
+          <span className="welcome-ring" aria-hidden="true" />
+          <span className="welcome-ring" aria-hidden="true" />
+          <span className="welcome-ring" aria-hidden="true" />
+          {user.photoURL ? (
+            <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="welcome-avatar relative size-24 rounded-full shadow-card ring-4 ring-surface" />
+          ) : (
+            <span className="welcome-avatar relative grid size-24 place-items-center rounded-full bg-accent text-4xl font-medium text-surface shadow-card ring-4 ring-surface">
+              {name?.[0]?.toUpperCase()}
+            </span>
+          )}
+        </div>
+        <p className="welcome-text mt-6 text-2xl font-light text-ink sm:text-3xl">ยินดีต้อนรับ ☕</p>
+        <p className="welcome-sub mt-1 text-lg text-accent">{name}</p>
+      </div>
+    </div>
+  )
+}
+
 // Gate: the dashboard (and its onSnapshot) only mounts once someone is signed in.
 function LiveTab({ colors }) {
   const [user, setUser] = useState(undefined) // undefined = still checking, null = signed out
   const [authError, setAuthError] = useState(null)
+  const [welcome, setWelcome] = useState(false)
 
   useEffect(() => onAuthStateChanged(auth, setUser), [])
 
   const signIn = () => {
     setAuthError(null)
-    signInWithPopup(auth, googleProvider).catch((e) => setAuthError(AUTH_ERRORS[e.code] ?? `เข้าสู่ระบบไม่สำเร็จ: ${e.message}`))
+    signInWithPopup(auth, googleProvider)
+      .then(({ user: signedIn }) => {
+        const first = (signedIn.displayName || signedIn.email).split(' ')[0]
+        playSound('fanfare')
+        showToast({ icon: '👋', title: `สวัสดี ${first}!`, text: 'เข้าสู่ระบบแล้ว ยอดขายสดพร้อมดู' })
+        if (prefersReducedMotion()) return
+        fireConfetti()
+        setWelcome(true)
+        setTimeout(() => setWelcome(false), WELCOME_MS)
+      })
+      .catch((e) => setAuthError(AUTH_ERRORS[e.code] ?? `เข้าสู่ระบบไม่สำเร็จ: ${e.message}`))
   }
 
   if (user === undefined) return <p className="text-muted">กำลังตรวจสอบการเข้าสู่ระบบ…</p>
   if (!user) return <SignInCard onSignIn={signIn} error={authError} />
   return (
     <>
+      {welcome && <WelcomeSplash user={user} />}
       <div className="rise mb-4 flex justify-end sm:mb-6">
         <UserChip user={user} onSignOut={() => signOut(auth)} />
       </div>
