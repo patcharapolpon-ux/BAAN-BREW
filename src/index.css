@@ -447,36 +447,42 @@ body {
 }
 .ticket-timer { animation-name: ticket-timer; animation-timing-function: linear; animation-fill-mode: both; }
 
-/* ─── Shop cat ────────────────────────────────────────────────────────────── */
-.cat { transition: transform 200ms var(--ease-out); }
-.cat-svg * { transform-box: fill-box; }
-.cat-leg { transform-origin: top center; }
-.cat-closed { opacity: 0; }
-@keyframes cat-step { 0%, 100% { transform: rotate(18deg); } 50% { transform: rotate(-18deg); } }
-.cat-walk .cat-leg-b1, .cat-walk .cat-leg-f2 { animation: cat-step 420ms ease-in-out infinite; }
-.cat-walk .cat-leg-b2, .cat-walk .cat-leg-f1 { animation: cat-step 420ms ease-in-out infinite reverse; }
-.cat-walk .cat-svg { animation: cat-bob 210ms ease-in-out infinite alternate; }
-@keyframes cat-bob { to { transform: translateY(-1.5px); } }
-.cat-tail { transform-origin: right bottom; }
-@keyframes cat-tail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-16deg); } }
-.cat-sit .cat-tail, .cat-walk .cat-tail { animation: cat-tail 1.8s ease-in-out infinite; }
+/* ─── Shop pug ────────────────────────────────────────────────────────────── */
+.dog { transition: transform 200ms var(--ease-out); }
+.dog-svg * { transform-box: fill-box; }
+.dog-leg { transform-origin: top center; }
+.dog-closed { opacity: 0; }
+@keyframes dog-step { 0%, 100% { transform: rotate(18deg); } 50% { transform: rotate(-18deg); } }
+.dog-walk .dog-leg-b1, .dog-walk .dog-leg-f2 { animation: dog-step 420ms ease-in-out infinite; }
+.dog-walk .dog-leg-b2, .dog-walk .dog-leg-f1 { animation: dog-step 420ms ease-in-out infinite reverse; }
+.dog-walk .dog-svg { animation: dog-bob 210ms ease-in-out infinite alternate; }
+@keyframes dog-bob { to { transform: translateY(-1.5px); } }
+.dog-tail { transform-origin: right bottom; }
+@keyframes dog-tail { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-16deg); } }
+.dog-sit .dog-tail, .dog-walk .dog-tail { animation: dog-tail 1.8s ease-in-out infinite; }
 /* blink every few seconds while awake */
-.cat-eyes { transform-origin: center; animation: cat-blink 4.5s infinite; }
-@keyframes cat-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+.dog-eyes { transform-origin: center; animation: dog-blink 4.5s infinite; }
+@keyframes dog-blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
 /* napping / sleeping: eyes shut, legs tucked, slow breathing */
-.cat-nap .cat-eyes, .cat-sleep .cat-eyes { opacity: 0; animation: none; }
-.cat-nap .cat-closed, .cat-sleep .cat-closed { opacity: 1; }
-.cat-nap .cat-leg, .cat-sleep .cat-leg { transform: scaleY(0.35); }
-.cat-nap .cat-svg, .cat-sleep .cat-svg { transform-origin: bottom; animation: cat-breathe 2.6s ease-in-out infinite; }
-@keyframes cat-breathe { 0%, 100% { transform: translateY(6px) scaleY(0.9); } 50% { transform: translateY(6px) scaleY(0.96); } }
-.cat-jump .cat-leg-f1, .cat-jump .cat-leg-f2 { transform: rotate(-35deg); }
-.cat-jump .cat-leg-b1, .cat-jump .cat-leg-b2 { transform: rotate(35deg); }
-.cat-zzz span, .cat-zzz { display: inline-block; animation: zzz 2.4s ease-in-out infinite; }
-.cat-zzz span:nth-child(1) { animation-delay: 0.4s; }
-.cat-zzz span:nth-child(2) { animation-delay: 0.8s; }
+.dog-nap .dog-eyes, .dog-sleep .dog-eyes { opacity: 0; animation: none; }
+.dog-nap .dog-closed, .dog-sleep .dog-closed { opacity: 1; }
+.dog-nap .dog-leg, .dog-sleep .dog-leg { transform: scaleY(0.35); }
+.dog-nap .dog-svg, .dog-sleep .dog-svg { transform-origin: bottom; animation: dog-breathe 2.6s ease-in-out infinite; }
+@keyframes dog-breathe { 0%, 100% { transform: translateY(6px) scaleY(0.9); } 50% { transform: translateY(6px) scaleY(0.96); } }
+.dog-jump .dog-leg-f1, .dog-jump .dog-leg-f2 { transform: rotate(-35deg); }
+.dog-jump .dog-leg-b1, .dog-jump .dog-leg-b2 { transform: rotate(35deg); }
+.dog-zzz span, .dog-zzz { display: inline-block; animation: zzz 2.4s ease-in-out infinite; }
+.dog-zzz span:nth-child(1) { animation-delay: 0.4s; }
+.dog-zzz span:nth-child(2) { animation-delay: 0.8s; }
 @keyframes zzz { 0% { opacity: 0; transform: translate(0, 4px) scale(0.7); } 40% { opacity: 1; } 100% { opacity: 0; transform: translate(6px, -10px) scale(1.1); } }
-@keyframes cat-heart { from { opacity: 1; transform: translate(-50%, 0) scale(0.6); } to { opacity: 0; transform: translate(-50%, -34px) scale(1.2); } }
-.cat-heart { animation: cat-heart 1s var(--ease-out) forwards; }
+@keyframes dog-heart { from { opacity: 1; transform: translate(-50%, 0) scale(0.6); } to { opacity: 0; transform: translate(-50%, -34px) scale(1.2); } }
+.dog-heart { animation: dog-heart 1s var(--ease-out) forwards; }
+/* pugs pant: the tongue bobs while awake */
+.dog-tongue { transform-origin: top center; animation: dog-pant 0.5s ease-in-out infinite alternate; }
+@keyframes dog-pant { to { transform: scaleY(1.25); } }
+.dog-nap .dog-tongue, .dog-sleep .dog-tongue { animation: none; opacity: 0; }
+/* a quick tail wiggle instead of the cat's slow swish */
+.dog-sit .dog-tail, .dog-walk .dog-tail { animation-duration: 0.45s; }
 
 /* ─── Earthquake ──────────────────────────────────────────────────────────── */
 @keyframes quake-shake {

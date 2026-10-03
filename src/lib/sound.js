@@ -126,28 +126,32 @@ const SOUNDS = {
     swoosh(ac, { from: 4000, to: 8000, dur: 0.5, gain: 0.08, q: 0.8 })
   },
   // "Meow": a sawtooth that rises then falls, through a vowel-ish band-pass.
-  meow: (ac) => {
-    const t = ac.currentTime
-    const osc = ac.createOscillator()
-    const vowel = ac.createBiquadFilter()
-    const amp = ac.createGain()
-    osc.type = 'sawtooth'
-    const base = 620 + Math.random() * 120
-    osc.frequency.setValueAtTime(base, t)
-    osc.frequency.linearRampToValueAtTime(base * 1.45, t + 0.12)
-    osc.frequency.exponentialRampToValueAtTime(base * 0.75, t + 0.45)
-    vowel.type = 'bandpass'
-    vowel.Q.value = 3
-    vowel.frequency.setValueAtTime(900, t)
-    vowel.frequency.linearRampToValueAtTime(1800, t + 0.15)
-    vowel.frequency.linearRampToValueAtTime(1000, t + 0.45)
-    amp.gain.setValueAtTime(0.0001, t)
-    amp.gain.exponentialRampToValueAtTime(0.22, t + 0.05)
-    amp.gain.exponentialRampToValueAtTime(0.0001, t + 0.5)
-    osc.connect(vowel).connect(amp).connect(ac.destination)
-    osc.start(t)
-    osc.stop(t + 0.55)
+  // Pug bark: two short, low, slightly growly "boof"s.
+  woof: (ac) => {
+    const t0 = ac.currentTime
+    for (const [delay, pitch] of [[0, 1], [0.2, 0.92]]) {
+      const t = t0 + delay
+      const osc = ac.createOscillator()
+      const mouth = ac.createBiquadFilter()
+      const amp = ac.createGain()
+      osc.type = 'sawtooth'
+      const base = (330 + Math.random() * 40) * pitch
+      osc.frequency.setValueAtTime(base, t)
+      osc.frequency.linearRampToValueAtTime(base * 1.25, t + 0.03)
+      osc.frequency.exponentialRampToValueAtTime(base * 0.55, t + 0.14)
+      mouth.type = 'lowpass'
+      mouth.Q.value = 6
+      mouth.frequency.setValueAtTime(1400, t)
+      mouth.frequency.exponentialRampToValueAtTime(500, t + 0.14)
+      amp.gain.setValueAtTime(0.0001, t)
+      amp.gain.exponentialRampToValueAtTime(0.35, t + 0.015)
+      amp.gain.exponentialRampToValueAtTime(0.0001, t + 0.16)
+      osc.connect(mouth).connect(amp).connect(ac.destination)
+      osc.start(t)
+      osc.stop(t + 0.18)
+    }
   },
+
   // Earthquake: long low rumble.
   rumble: (ac) => {
     swoosh(ac, { from: 90, to: 50, dur: 1.6, gain: 0.9, q: 0.6, type: 'lowpass' })

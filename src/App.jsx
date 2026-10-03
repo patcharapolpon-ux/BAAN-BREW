@@ -12,7 +12,7 @@ import Panel from './components/Panel'
 import SiteCredit from './components/SiteCredit'
 import SalesHeatmap from './components/SalesHeatmap'
 import ScrollCup from './components/ScrollCup'
-import ShopCat from './components/ShopCat'
+import ShopDog from './components/ShopDog'
 import ShopSign from './components/ShopSign'
 import ShareButton from './components/ShareButton'
 import SoundToggle from './components/SoundToggle'
@@ -458,7 +458,7 @@ function App() {
 
       <BackToTop />
       <ScrollCup />
-      <ShopCat />
+      <ShopDog />
       {gameSlot && rows && (
         <ToyBoundary onError={closeGame}>
           <BaristaGame rows={rows} slot={gameSlot} onClose={closeGame} />
