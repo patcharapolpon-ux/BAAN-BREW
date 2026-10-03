@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatBahtCompact, formatThaiDate, lastDays } from '../lib/metrics'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { describeDaily, findAnomalies, formatBaht, formatBahtCompact, formatThaiDate, lastDays } from '../lib/metrics'
+import { sonify } from '../lib/sound'
 import { useReducedMotion } from '../lib/motion'
 import { useIsMobile } from '../lib/useIsMobile'
 import ChartTooltip from './ChartTooltip'
@@ -41,6 +42,30 @@ function DailySalesChart({ data, colors }) {
   const [range, setRange] = useState(isMobile ? 90 : 0)
   const shown = lastDays(data, range)
 
+  // 🎧 Listen to the chart: the 7-day average becomes a melody, unusual days ring a bell,
+  // and a playhead follows along. `playing` = index into `shown` being heard, or null.
+  const [playing, setPlaying] = useState(null)
+  const stopRef = useRef(null)
+  const summaryId = useId()
+  const summary = useMemo(() => describeDaily(shown), [shown])
+  const stop = () => {
+    stopRef.current?.()
+    stopRef.current = null
+    setPlaying(null)
+  }
+  useEffect(() => stop, [range]) // a new range (or leaving the page) stops the tune
+  const listen = () => {
+    if (stopRef.current) return stop()
+    const unusual = new Set(findAnomalies(data).map((a) => a.date))
+    const accents = new Set(shown.flatMap((d, i) => (unusual.has(d.date) ? [i] : [])))
+    stopRef.current = sonify(
+      shown.map((d) => d.salesAvg ?? d.sales),
+      { seconds: range && range <= 30 ? 6 : 12, accents, onStep: setPlaying, onEnd: () => ((stopRef.current = null), setPlaying(null)) },
+    )
+    setPlaying(0)
+  }
+  const heard = playing != null ? shown[playing] : null
+
   const axis = { fontSize: isMobile ? 11 : 12, fill: colors.muted }
   // Long ranges: one tick per month (the 1st). Short ranges: one tick per week, counted back from today.
   const ticks =
@@ -60,6 +85,15 @@ function DailySalesChart({ data, colors }) {
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-2 sm:text-sm">
           <LegendItem color={colors.accent} thickness={3} label={series.salesAvg.name} />
           <LegendItem color={colors.accentSoft} thickness={2} label={series.sales.name} />
+          <button
+            type="button"
+            data-sound="none"
+            onClick={listen}
+            aria-pressed={playing != null}
+            className="-my-1 inline-flex items-center gap-1 rounded-full border border-line px-2.5 py-1 text-xs text-ink-2 transition hover:text-accent"
+          >
+            {playing != null ? '⏹ หยุดฟัง' : '🎧 ฟังกราฟ'}
+          </button>
         </div>
         <SegmentedControl
           label="ช่วงเวลา"
@@ -69,6 +103,12 @@ function DailySalesChart({ data, colors }) {
           buttonClassName="h-9 px-3 text-xs sm:text-sm whitespace-nowrap"
         />
       </div>
+      {heard && (
+        <p className="mb-2 text-xs text-accent tabular-nums" aria-live="off">
+          ♪ {formatThaiDate(heard.date, { day: 'numeric', month: 'short', year: '2-digit' })} · {formatBaht(heard.salesAvg ?? heard.sales)}
+        </p>
+      )}
+      <div role="img" aria-label="กราฟยอดขายรายวัน" aria-describedby={summaryId}>
       <ResponsiveContainer width="100%" height={isMobile ? 240 : 320}>
         {/* key={range} remounts the chart so the draw-in animation replays on every range change. */}
         <ComposedChart
@@ -127,6 +167,7 @@ function DailySalesChart({ data, colors }) {
             animationBegin={150}
             animationEasing="ease-out"
           />
+          {heard && <ReferenceLine x={heard.date} stroke={colors.accent} strokeWidth={2} />}
           {last?.salesAvg != null && (
             <ReferenceDot
               x={last.date}
@@ -136,6 +177,13 @@ function DailySalesChart({ data, colors }) {
           )}
         </ComposedChart>
       </ResponsiveContainer>
+      </div>
+      <details className="mt-3 text-sm text-ink-2">
+        <summary className="cursor-pointer text-xs text-muted hover:text-accent">📝 อ่านกราฟนี้เป็นข้อความ</summary>
+        <p id={summaryId} className="mt-2 rounded-xl bg-surface-2 p-3 leading-relaxed">
+          {summary}
+        </p>
+      </details>
     </>
   )
 }

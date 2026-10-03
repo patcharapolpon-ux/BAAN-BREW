@@ -6,7 +6,9 @@ import BranchFilter from './components/BranchFilter'
 import BranchMap3D from './components/BranchMap3D'
 import BranchSalesChart from './components/BranchSalesChart'
 import DailySalesChart from './components/DailySalesChart'
+import DetectivePanel from './components/DetectivePanel'
 import DonutChart from './components/DonutChart'
+import WhatIfPanel from './components/WhatIfPanel'
 import Eggs from './components/Eggs'
 import KpiCard from './components/KpiCard'
 import PageTabs from './components/PageTabs'
@@ -18,6 +20,7 @@ import ShopDog from './components/ShopDog'
 import ShopSign from './components/ShopSign'
 import ShareButton from './components/ShareButton'
 import { StoriesButton } from './components/Stories'
+import { NewspaperButton } from './components/Newspaper'
 import SoundToggle from './components/SoundToggle'
 import ThemeToggle from './components/ThemeToggle'
 import ToyBoundary from './components/ToyBoundary'
@@ -374,8 +377,9 @@ function App() {
             <div className="rise mb-4 sm:mb-6" style={{ animationDelay: '80ms' }}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <BranchFilter branches={branches.map((b) => b.branch)} value={branch} onChange={setBranch} />
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <TimeMachineButton rows={rows} colors={colors} />
+                  <NewspaperButton rows={rows} />
                   <StoriesButton rows={stats.picked} branch={branch} range={range} kpi={stats.kpi} topBranch={topBranch} recentChange={stats.recent.change} />
                   <ShareButton branch={branch} range={range} kpi={stats.kpi} topBranch={topBranch} recentChange={stats.recent.change} />
                 </div>
@@ -453,6 +457,13 @@ function App() {
               {(inView) => <SalesHeatmap data={stats.heatmap} show={inView} onPlay={setGameSlot} />}
             </Panel>
 
+            <Panel
+              title="นักสืบวันแปลก"
+              subtitle={`หาวันที่ยอดขายผิดปกติด้วยสถิติ แล้วสืบว่าเพราะอะไร${branch ? ` · สาขา${branch}` : ''}`}
+            >
+              {(inView) => <DetectivePanel rows={stats.picked} colors={colors} show={inView} />}
+            </Panel>
+
             <div className="mt-4 grid gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
               <Panel title="ช่องทางชำระเงิน" subtitle="สัดส่วนจากยอดขาย · ชี้ที่ชิ้นหรือรายการ" className="">
                 {(inView) => <DonutChart data={stats.payments} colors={colors} show={inView} />}
@@ -461,6 +472,10 @@ function App() {
                 {(inView) => <DonutChart data={stats.channels} colors={colors} show={inView} />}
               </Panel>
             </div>
+
+            <Panel title="ถ้า… (จำลองสถานการณ์)" subtitle="ขยับตัวเลือกแล้วดูว่ายอดขายทั้งปีจะเปลี่ยนเท่าไร · คิดจากทุกสาขา พร้อมบอกสมมติฐานที่ใช้">
+              <WhatIfPanel rows={rows} />
+            </Panel>
 
             <footer className="mt-8 text-center text-xs text-muted sm:mt-10">
               ข้อมูล {formatNumber(rows.length)} รายการ · {branches.length} สาขา · {formatNumber(stats.kpi.dayCount)} วัน ·{' '}

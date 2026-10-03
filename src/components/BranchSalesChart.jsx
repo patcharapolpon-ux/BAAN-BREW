@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Bar, BarChart, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatBaht, formatPercent } from '../lib/metrics'
+import { describeBranches, formatBaht, formatPercent } from '../lib/metrics'
 import { useReducedMotion } from '../lib/motion'
 import { playSound } from '../lib/sound'
 import { useIsMobile } from '../lib/useIsMobile'
@@ -45,6 +45,8 @@ function BranchSalesChart({ data, colors, show = true, selected = null, onSelect
   }
 
   return (
+    // Screen readers get the whole ranking as one sentence; the bars themselves are decoration to them.
+    <div role="img" aria-label={describeBranches(data)}>
     <ResponsiveContainer width="100%" height={height}>
       <BarChart
         data={data}
@@ -108,6 +110,7 @@ function BranchSalesChart({ data, colors, show = true, selected = null, onSelect
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </div>
   )
 }
 

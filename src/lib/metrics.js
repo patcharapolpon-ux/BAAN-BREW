@@ -344,6 +344,233 @@ export function storyFacts(rows, products) {
   }
 }
 
+// ---- data detective: unusual days ----
+
+/** Mean and (population) standard deviation of a list of numbers: { mean, sd }. */
+export function meanStd(values) {
+  if (values.length === 0) return { mean: 0, sd: 0 }
+  const mean = values.reduce((a, b) => a + b, 0) / values.length
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length
+  return { mean, sd: Math.sqrt(variance) }
+}
+
+/**
+ * What a day "should" have sold: the same weekday over the previous `weeks` weeks.
+ * Comparing Friday with past Fridays (not with Mondays) keeps the normal weekly rhythm
+ * from looking unusual. Returns { mean, sd, n } or null when there isn't enough history.
+ * `daily` = dailySales() output (consecutive days, so 7 steps back = same weekday).
+ */
+export function expectedFor(daily, index, weeks = 8) {
+  const past = []
+  for (let i = index - 7; i >= 0 && past.length < weeks; i -= 7) past.push(daily[i].sales)
+  if (past.length < 4) return null
+  return { ...meanStd(past), n: past.length }
+}
+
+/**
+ * Days whose sales are far from normal, as z-scores:
+ *   z = (sales − expected mean) ÷ standard deviation of those past days.
+ * |z| ≥ threshold → unusual. Returns [{ date, sales, expected, sd, z, kind: 'spike' | 'drop' }],
+ * most unusual first.
+ */
+export function findAnomalies(daily, { weeks = 8, threshold = 2.5 } = {}) {
+  const found = []
+  daily.forEach((day, i) => {
+    const e = expectedFor(daily, i, weeks)
+    if (!e || e.sd === 0) return
+    const z = (day.sales - e.mean) / e.sd
+    if (Math.abs(z) >= threshold) found.push({ date: day.date, sales: day.sales, expected: e.mean, sd: e.sd, z, kind: z > 0 ? 'spike' : 'drop' })
+  })
+  return found.sort((a, b) => Math.abs(b.z) - Math.abs(a.z))
+}
+
+/** Sales rows grouped by Thai date: Map('YYYY-MM-DD' → rows). Build once, look days up fast. */
+export function rowsByDate(rows) {
+  const map = new Map()
+  for (const row of rows) {
+    const date = toThaiDate(row.datetime)
+    if (!map.has(date)) map.set(date, [])
+    map.get(date).push(row)
+  }
+  return map
+}
+
+/**
+ * Why was this day different? Compares the day with the same weekday of the previous `weeks`
+ * weeks, split by branch, product and hour. Each list: [{ key, actual, expected, diff }],
+ * biggest absolute difference first. `products` (products.csv rows) turns ids into names.
+ */
+export function explainDay(byDate, date, products = [], weeks = 8) {
+  const names = new Map(products.map((p) => [p.product_id, p.product_name]))
+  const pastDates = []
+  for (let k = 1; k <= weeks; k++) {
+    const d = new Date(Date.parse(date) - k * 7 * DAY_MS).toISOString().slice(0, 10)
+    if (byDate.has(d)) pastDates.push(d)
+  }
+  const split = (field, label = (v) => v) => {
+    const sumBy = (rows) => {
+      const m = new Map()
+      for (const r of rows) {
+        const key = field === 'hour' ? new Date(Date.parse(r.datetime) + THAI_OFFSET_MS).getUTCHours() : r[field]
+        m.set(key, (m.get(key) ?? 0) + lineTotal(r))
+      }
+      return m
+    }
+    const today = sumBy(byDate.get(date) ?? [])
+    const past = pastDates.map((d) => sumBy(byDate.get(d)))
+    const keys = new Set([...today.keys(), ...past.flatMap((m) => [...m.keys()])])
+    return [...keys]
+      .map((key) => {
+        const actual = today.get(key) ?? 0
+        const expected = past.length ? past.reduce((s, m) => s + (m.get(key) ?? 0), 0) / past.length : 0
+        return { key: label(key), actual, expected, diff: actual - expected }
+      })
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff))
+  }
+  return {
+    pastDays: pastDates.length,
+    branches: split('branch'),
+    products: split('product_id', (id) => names.get(id) ?? id),
+    hours: split('hour'),
+  }
+}
+
+/**
+ * Do lottery draw days sell differently? For every draw date inside the data, its sales vs the
+ * same-weekday expectation. lift = sales ÷ expected − 1. Returns
+ * { days: [{ date, sales, expected, lift }], averageLift, higher, total }.
+ */
+export function lotteryEffect(daily, drawDates) {
+  const index = new Map(daily.map((d, i) => [d.date, i]))
+  const days = []
+  for (const date of drawDates) {
+    const i = index.get(date)
+    if (i === undefined) continue
+    const e = expectedFor(daily, i)
+    if (!e || e.mean === 0) continue
+    days.push({ date, sales: daily[i].sales, expected: e.mean, lift: daily[i].sales / e.mean - 1 })
+  }
+  const averageLift = days.length ? days.reduce((s, d) => s + d.lift, 0) / days.length : 0
+  return { days, averageLift, higher: days.filter((d) => d.lift > 0).length, total: days.length }
+}
+
+// ---- what-if simulator ----
+
+// Fixed assumptions, shown to the user next to the result (a model is only as honest as these).
+export const WHAT_IF = {
+  EXTRA_HOUR_SHARE: 0.6, // an extra evening hour sells 60% of what the current last hour sells
+  NEW_BRANCH_RAMP: 0.7, // a new branch's first year sells 70% of a mature branch of the same type
+}
+
+/**
+ * Step 1 of the simulator (slow, run once): the facts every scenario needs, from the last
+ * 365 days of data. branchInfo = branches.csv rows ({ branch, branch_type }).
+ * Returns { base, byWeekday[0–6], lastHour, lastHourSales, perDayByType: { type: { perDay, peers } } }.
+ */
+export function whatIfFacts(rows, branchInfo) {
+  const lastMs = rows.reduce((max, r) => Math.max(max, Date.parse(r.datetime)), 0)
+  const cutoff = lastMs - 365 * DAY_MS
+  const byWeekday = Array(7).fill(0)
+  const byHour = Array(24).fill(0)
+  let base = 0
+  for (const r of rows) {
+    const ms = Date.parse(r.datetime)
+    if (ms <= cutoff) continue
+    const t = new Date(ms + THAI_OFFSET_MS)
+    const amount = lineTotal(r)
+    base += amount
+    byWeekday[t.getUTCDay()] += amount
+    byHour[t.getUTCHours()] += amount
+  }
+  const lastHour = byHour.findLastIndex((v) => v > 0)
+
+  // Per open day, each branch over all the data, then averaged per branch type.
+  const type = new Map(branchInfo.map((b) => [b.branch, b.branch_type]))
+  const perDayByType = {}
+  for (const b of salesByBranch(rows)) {
+    const own = rows.filter((r) => r.branch === b.branch)
+    const t = type.get(b.branch) ?? 'อื่น ๆ'
+    perDayByType[t] ??= { perDay: 0, peers: [] }
+    perDayByType[t].peers.push(b.branch)
+    perDayByType[t].perDay += (b.sales / dayCount(own) - perDayByType[t].perDay) / perDayByType[t].peers.length // running mean
+  }
+  return { base, byWeekday, lastHour, lastHourSales: byHour[lastHour] ?? 0, perDayByType }
+}
+
+/**
+ * Step 2 (instant, run on every slider move): one scenario = {
+ *   priceChange: −0.2…0.3 (every menu price), elasticity: e.g. −0.8 (how strongly cups sold react),
+ *   closedWeekday: null | 0–6 (0 = Sunday), shiftShare: 0–1 (closed-day customers who come another day),
+ *   extraHour: bool (open one hour later), newBranchType: null | branch_type, cannibal: 0–1 }
+ * Returns { base, steps: [{ key, value }], total, change, cupsChange }.
+ *
+ * Price uses constant elasticity: cups × (1 + p)^ε, so revenue × (1 + p)^(1 + ε).
+ * The other levers add or remove baht first; the price factor then applies to the new total.
+ */
+export function whatIf(facts, scenario) {
+  const { base } = facts
+  const closed = scenario.closedWeekday != null ? -facts.byWeekday[scenario.closedWeekday] * (1 - (scenario.shiftShare ?? 0)) : 0
+  const extra = scenario.extraHour ? facts.lastHourSales * WHAT_IF.EXTRA_HOUR_SHARE : 0
+  const peer = facts.perDayByType[scenario.newBranchType]
+  const newBranch = peer ? peer.perDay * 365 * WHAT_IF.NEW_BRANCH_RAMP * (1 - (scenario.cannibal ?? 0)) : 0
+
+  const p = scenario.priceChange ?? 0
+  const e = scenario.elasticity ?? -0.8
+  const subtotal = base + closed + extra + newBranch
+  const price = subtotal * ((1 + p) ** (1 + e) - 1)
+  const total = subtotal + price
+  return {
+    base,
+    steps: [
+      { key: 'closed', value: closed },
+      { key: 'extraHour', value: extra },
+      { key: 'newBranch', value: newBranch },
+      { key: 'price', value: price },
+    ],
+    total,
+    change: base === 0 ? 0 : total / base - 1,
+    cupsChange: (1 + p) ** e - 1,
+  }
+}
+
+// ---- describing charts in words (for screen readers, and for anyone who'd rather read) ----
+
+const SR_DATE = { day: 'numeric', month: 'long', year: 'numeric' }
+
+/**
+ * A daily series ([{ date, sales }]) as a few Thai sentences: range, average, highest and
+ * lowest day, and whether the second half sold more or less than the first.
+ */
+export function describeDaily(series) {
+  if (series.length === 0) return 'ยังไม่มีข้อมูลยอดขาย'
+  const total = series.reduce((s, d) => s + d.sales, 0)
+  const high = series.reduce((a, b) => (b.sales > a.sales ? b : a))
+  const low = series.reduce((a, b) => (b.sales < a.sales ? b : a))
+  const half = Math.floor(series.length / 2)
+  const avg = (list) => list.reduce((s, d) => s + d.sales, 0) / Math.max(1, list.length)
+  const firstHalf = avg(series.slice(0, half))
+  const change = firstHalf === 0 ? 0 : avg(series.slice(half)) / firstHalf - 1
+  const trend =
+    Math.abs(change) < 0.02
+      ? 'ครึ่งหลังขายได้พอ ๆ กับครึ่งแรก'
+      : `ครึ่งหลังยอดเฉลี่ย${change > 0 ? 'สูงขึ้น' : 'ลดลง'} ${formatPercent(Math.abs(change), 1)} เมื่อเทียบกับครึ่งแรก`
+  return [
+    `กราฟยอดขายรายวัน ${formatNumber(series.length)} วัน ตั้งแต่ ${formatThaiDate(series[0].date, SR_DATE)} ถึง ${formatThaiDate(series.at(-1).date, SR_DATE)}`,
+    `เฉลี่ยวันละ ${formatBaht(total / series.length)}`,
+    `สูงสุด ${formatBaht(high.sales)} เมื่อ${formatThaiDate(high.date, { weekday: 'long', ...SR_DATE })}`,
+    `ต่ำสุด ${formatBaht(low.sales)} เมื่อ${formatThaiDate(low.date, { weekday: 'long', ...SR_DATE })}`,
+    trend,
+  ].join(' · ')
+}
+
+/** Branch ranking ([{ branch, sales, share }]) as one Thai sentence. */
+export function describeBranches(branches) {
+  if (branches.length === 0) return 'ยังไม่มีข้อมูลสาขา'
+  return `ยอดขายแยกสาขา ${branches.length} สาขา เรียงจากมากไปน้อย: ${branches
+    .map((b, i) => `อันดับ ${i + 1} ${b.branch} ${formatBaht(b.sales)} (${formatPercent(b.share, 1)})`)
+    .join(', ')}`
+}
+
 // ---- customers (public/customers.csv: 1 row = 1 member) ----
 
 /** Whole days from date a to date b ('YYYY-MM-DD'); positive when b is later. */

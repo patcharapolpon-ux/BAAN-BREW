@@ -238,6 +238,74 @@ function scheduleStep(ac, step, time) {
   }
 }
 
+// ─── Sonification: hear a chart. Higher sales = higher note, time = left → right speaker ───
+// Notes come from a pentatonic scale (no notes clash, so any data sounds musical). Long
+// series are averaged into at most MAX_NOTES notes so the whole chart takes `seconds`.
+// It plays even when click sounds are switched off: pressing "listen" is an explicit request.
+
+const PENTATONIC = [0, 2, 4, 7, 9] // C D E G A
+const MAX_NOTES = 120
+const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12)
+
+/**
+ * Plays `values` as a melody. `accents` = indexes to mark with a bell (e.g. unusual days).
+ * onStep(i) is called with the index (into `values`) being heard; onEnd() when done.
+ * Returns stop().
+ */
+export function sonify(values, { seconds = 10, accents = new Set(), onStep, onEnd } = {}) {
+  const ac = audio()
+  if (!ac || values.length === 0) return () => {}
+  const per = Math.max(1, Math.ceil(values.length / MAX_NOTES))
+  const notes = []
+  for (let i = 0; i < values.length; i += per) {
+    const chunk = values.slice(i, i + per)
+    notes.push({ start: i, value: chunk.reduce((a, b) => a + b, 0) / chunk.length, accent: chunk.some((_, k) => accents.has(i + k)) })
+  }
+  const min = Math.min(...notes.map((n) => n.value))
+  const max = Math.max(...notes.map((n) => n.value))
+  const steps = PENTATONIC.length * 2 // two octaves
+  const step = seconds / notes.length
+  const master = ac.createGain()
+  master.gain.value = 0.9
+  master.connect(ac.destination)
+  const t0 = ac.currentTime + 0.15
+  notes.forEach((n, k) => {
+    const level = max === min ? 0.5 : (n.value - min) / (max - min)
+    const idx = Math.round(level * (steps - 1))
+    const midi = 60 + 12 * Math.floor(idx / PENTATONIC.length) + PENTATONIC[idx % PENTATONIC.length]
+    const pan = ac.createStereoPanner ? ac.createStereoPanner() : null
+    if (pan) {
+      pan.pan.value = notes.length === 1 ? 0 : (k / (notes.length - 1)) * 2 - 1
+      pan.connect(master)
+    }
+    const out = pan ?? master
+    const at = t0 + k * step - ac.currentTime
+    blip(ac, { freq: midiToHz(midi), start: at, dur: Math.max(0.09, step * 1.6), gain: 0.09, type: 'triangle', out })
+    if (n.accent) blip(ac, { freq: midiToHz(midi + 24), start: at, dur: 0.35, gain: 0.07, type: 'sine', out })
+  })
+  // Keep the context awake for the whole tune (audio() would otherwise suspend it when idle).
+  const keepAwake = setInterval(() => audio(), 2000)
+  let raf = 0
+  const tick = () => {
+    const k = Math.floor((ac.currentTime - t0) / step)
+    if (k >= notes.length) {
+      stop()
+      onEnd?.()
+      return
+    }
+    if (k >= 0) onStep?.(notes[k].start)
+    raf = requestAnimationFrame(tick)
+  }
+  raf = requestAnimationFrame(tick)
+  function stop() {
+    cancelAnimationFrame(raf)
+    clearInterval(keepAwake)
+    master.gain.setTargetAtTime(0, ac.currentTime, 0.05)
+    setTimeout(() => master.disconnect(), 300)
+  }
+  return stop
+}
+
 /** Is the lo-fi loop playing right now? (Stories only stops it if it started it.) */
 export const isBeatPlaying = () => beat !== null
 

@@ -755,3 +755,46 @@ body {
 
 .credit-shine { background: linear-gradient(90deg, #f9ce34, #ee2a7b, #6228d7, #f9ce34); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: credit-shine 2.5s linear infinite; }
 @keyframes credit-shine { to { background-position: 300% 0; } }
+
+/* ─── Newspaper (บ้านบรูรายวัน) ───────────────────────────────────────────── */
+/* Yellowed paper: base color + faint fibres + darker edges. Always "light", whatever the theme. */
+.paper {
+  color-scheme: light;
+  background:
+    radial-gradient(ellipse at center, transparent 55%, rgb(120 90 40 / 0.18) 100%),
+    repeating-linear-gradient(0deg, rgb(0 0 0 / 0.015) 0 1px, transparent 1px 3px),
+    #f3ead3;
+  box-shadow: 0 30px 80px -20px rgb(0 0 0 / 0.6);
+  font-family: var(--font-sans);
+}
+.paper-mast { letter-spacing: -0.02em; text-shadow: 1px 1px 0 rgb(0 0 0 / 0.15); }
+.paper-rule { border-top: 4px double #1c1917; }
+.paper-headline { color: #b91c1c; text-shadow: 2px 2px 0 rgb(0 0 0 / 0.12); }
+.paper-photo {
+  border: 1px solid #1c1917;
+  /* halftone dots, like a photo printed on cheap newsprint */
+  background: radial-gradient(circle, rgb(0 0 0 / 0.22) 1px, transparent 1.4px) 0 0 / 5px 5px, #e7dcc0;
+}
+.paper-lead::first-letter { float: left; font-family: var(--font-display); font-size: 3.4em; line-height: 0.9; padding: 0.08em 0.12em 0 0; font-weight: 700; color: #b91c1c; }
+.paper-box { border: 2px solid #1c1917; padding: 0.75rem; background: rgb(255 255 255 / 0.25); }
+.paper-box-title { margin: -0.75rem -0.75rem 0.6rem; padding: 0.25rem 0.75rem; background: #1c1917; color: #f3ead3; font-weight: 700; font-size: 0.85rem; }
+.paper-lotto { color: #b91c1c; }
+.paper-kicker { display: inline-block; background: #b91c1c; color: white; font-size: 0.7rem; font-weight: 700; padding: 0.05rem 0.5rem; }
+.paper-ad { border: 1px solid #57534e; padding: 0.5rem; }
+
+/* Spins in like the newspaper in an old film. */
+.paper-spin { animation: paper-spin 1s cubic-bezier(0.2, 0.7, 0.25, 1) both; }
+@keyframes paper-spin {
+  from { transform: rotate(-1080deg) scale(0.05); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .paper-spin { animation: none; } }
+
+/* Printing: only the paper, full width, no dashboard behind it. */
+@media print {
+  body:has(.paper-overlay) #root, .paper-controls { display: none !important; }
+  .paper-overlay { position: static !important; background: none !important; padding: 0 !important; overflow: visible !important; }
+  .paper-spin { animation: none !important; padding: 0 !important; }
+  .paper { box-shadow: none; max-width: none; }
+}
