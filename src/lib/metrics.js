@@ -118,6 +118,28 @@ export function lastDays(series, days) {
 }
 
 /**
+ * Sales per Thai calendar day for every date from `start` to `end` (YYYY-MM-DD, inclusive):
+ * [{ date, sales }]. Unlike dailySales() the range is fixed, so a day with no sales yet
+ * (e.g. today, early in the morning) still shows up as 0 at the end of the line.
+ */
+export function dailySalesBetween(rows, start, end) {
+  const byDate = new Map(dailySales(rows).map((d) => [d.date, d.sales]))
+  const result = []
+  for (let t = Date.parse(start); t <= Date.parse(end); t += DAY_MS) {
+    const date = new Date(t).toISOString().slice(0, 10)
+    result.push({ date, sales: byDate.get(date) ?? 0 })
+  }
+  return result
+}
+
+/** Sales per Thai hour of day (0–23), every hour included: [{ hour, sales }]. */
+export function hourlySales(rows) {
+  const sales = Array(24).fill(0)
+  for (const row of rows) sales[new Date(Date.parse(row.datetime) + THAI_OFFSET_MS).getUTCHours()] += lineTotal(row)
+  return sales.map((amount, hour) => ({ hour, sales: amount }))
+}
+
+/**
  * Last `days` days vs the `days` before them, from a dailySales() series:
  * { current, previous, change }. change = (current − previous) ÷ previous,
  * or null when there isn't a full previous period (or it summed to 0).

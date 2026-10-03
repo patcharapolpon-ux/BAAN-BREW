@@ -6,6 +6,8 @@ const PAGES = [
   { value: 'sales', label: 'ยอดขาย', hash: '' },
   { value: 'customers', label: 'ลูกค้า', hash: '#customers' },
   { value: 'lab2', label: 'Lab 2.2', hash: '#lab2' },
+  { value: 'live', label: 'สด', hash: '#live' },
+  { value: 'rules', label: 'ทดสอบ Rules', hash: '#rules' },
 ]
 
 function PageTabs({ value }) {
@@ -21,8 +23,8 @@ function PageTabs({ value }) {
         value={value}
         onChange={go}
         label="เลือกหน้า"
-        className="w-fit"
-        buttonClassName="px-5 py-2 text-sm font-medium"
+        className="w-fit max-w-full overflow-x-auto [scrollbar-width:none]"
+        buttonClassName="shrink-0 whitespace-nowrap px-3 py-2 text-sm font-medium sm:px-5"
       />
     </nav>
   )

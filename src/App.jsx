@@ -1,5 +1,5 @@
 import Papa from 'papaparse'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import BaristaGame from './components/BaristaGame'
 import BeanTrail from './components/BeanTrail'
 import BranchFilter from './components/BranchFilter'
@@ -168,6 +168,23 @@ function Header({ subtitle, preference, onThemeChange, sign }) {
   )
 }
 
+// Lab 3 tabs load the Firebase SDK only when opened, so the sales page stays light.
+// Without a filled-in .env they show the course's setup guide instead.
+const firebaseTab = (load) =>
+  lazy(() => import('./lab3/firebase').then((m) => (m.isConfigured ? load() : import('./lab3/SetupGuide'))))
+const LiveTab = firebaseTab(() => import('./lab3/LiveTab'))
+const RulesTester = firebaseTab(() => import('./lab3/RulesTester'))
+
+// The course pages (Lab 2.2, Lab 3) are styled for a light page (white cards, stone text),
+// so they keep their own light panel even when the dashboard is in dark or neon mode.
+function CoursePanel({ children }) {
+  return (
+    <main className="rise rounded-2xl bg-stone-100 p-4 text-stone-900 [color-scheme:light] sm:p-6">
+      <Suspense fallback={<p>กำลังโหลด…</p>}>{children}</Suspense>
+    </main>
+  )
+}
+
 // Lab 2.2 tab (#lab2): bad charts vs fixed charts, side by side.
 function Lab2Tab({ rows }) {
   const [products, setProducts] = useState(null)
@@ -181,12 +198,10 @@ function Lab2Tab({ rows }) {
   }, [])
   const prepared = useMemo(() => (rows ? prepareRows(rows) : null), [rows])
 
-  // The course's Lab2Page is styled for a light page (white cards, stone text), so it keeps
-  // its own light panel even when the dashboard is in dark or neon mode.
   return (
-    <main className="rise rounded-2xl bg-stone-100 p-4 text-stone-900 [color-scheme:light] sm:p-6">
+    <CoursePanel>
       {prepared && products ? <Lab2Page rows={prepared} products={products} /> : <p>กำลังโหลดข้อมูล…</p>}
-    </main>
+    </CoursePanel>
   )
 }
 
@@ -264,7 +279,9 @@ function App() {
     showToast({ icon: '🏆', title: `สาขา${branch} ขายดีอันดับ 1!`, text: `ครองยอดขาย ${formatPercent(topBranch.share, 0)} ของทุกสาขา` })
   }, [branch, topBranch])
 
-  const page = hash === '#customers' ? 'customers' : hash === '#lab2' ? 'lab2' : 'sales'
+  const PAGE_BY_HASH = { '#customers': 'customers', '#lab2': 'lab2', '#live': 'live', '#rules': 'rules' }
+  const page = PAGE_BY_HASH[hash] ?? 'sales'
+  const usesCsv = page !== 'live' && page !== 'rules'
   const range =
     stats?.daily.length > 0
       ? `${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
@@ -293,22 +310,34 @@ function App() {
               ? `ลูกค้าสมาชิก ${range}`
               : page === 'lab2'
               ? `ซ่อมกราฟแย่ · ข้อมูล ${range}`
+              : page === 'live'
+              ? 'ยอดขายสดจาก Firestore'
+              : page === 'rules'
+              ? 'ทดสอบ Security Rules'
               : `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${range}`
           }
         />
 
         <PageTabs value={page} />
 
-        {error && (
+        {error && usesCsv && (
           <p role="alert" className="rounded-2xl border border-line bg-surface p-5 text-ink">
             โหลดข้อมูลไม่สำเร็จ: {error}
           </p>
         )}
-        {!stats && !error && <Skeleton />}
+        {!stats && !error && usesCsv && <Skeleton />}
 
         {stats && page === 'customers' && <CustomersPage rows={rows} colors={colors} />}
 
         {stats && page === 'lab2' && <Lab2Tab rows={rows} />}
+
+        {page === 'live' && (
+          <Suspense fallback={<p className="text-muted">กำลังโหลด…</p>}>
+            <LiveTab colors={colors} />
+          </Suspense>
+        )}
+
+        {page === 'rules' && <CoursePanel><RulesTester /></CoursePanel>}
 
         {stats && page === 'sales' && (
           <main>
