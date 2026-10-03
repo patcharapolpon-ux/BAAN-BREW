@@ -168,8 +168,8 @@ function Header({ subtitle, preference, onThemeChange, sign }) {
   )
 }
 
-// Lab 2.2 page (open with #lab2): bad charts vs fixed charts, side by side.
-function Lab2Screen({ rows }) {
+// Lab 2.2 tab (#lab2): bad charts vs fixed charts, side by side.
+function Lab2Tab({ rows }) {
   const [products, setProducts] = useState(null)
   useEffect(() => {
     Papa.parse('/products.csv', {
@@ -181,14 +181,12 @@ function Lab2Screen({ rows }) {
   }, [])
   const prepared = useMemo(() => (rows ? prepareRows(rows) : null), [rows])
 
+  // The course's Lab2Page is styled for a light page (white cards, stone text), so it keeps
+  // its own light panel even when the dashboard is in dark or neon mode.
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
-        <a href="#" className="mb-4 inline-block text-sm text-stone-600 underline">← กลับไปแดชบอร์ด</a>
-        {prepared && products ? <Lab2Page rows={prepared} products={products} /> : <p>กำลังโหลดข้อมูล…</p>}
-        <SiteCredit />
-      </div>
-    </div>
+    <main className="rise rounded-2xl bg-stone-100 p-4 text-stone-900 [color-scheme:light] sm:p-6">
+      {prepared && products ? <Lab2Page rows={prepared} products={products} /> : <p>กำลังโหลดข้อมูล…</p>}
+    </main>
   )
 }
 
@@ -266,8 +264,7 @@ function App() {
     showToast({ icon: '🏆', title: `สาขา${branch} ขายดีอันดับ 1!`, text: `ครองยอดขาย ${formatPercent(topBranch.share, 0)} ของทุกสาขา` })
   }, [branch, topBranch])
 
-  if (hash === '#lab2') return <Lab2Screen rows={rows} />
-  const page = hash === '#customers' ? 'customers' : 'sales'
+  const page = hash === '#customers' ? 'customers' : hash === '#lab2' ? 'lab2' : 'sales'
   const range =
     stats?.daily.length > 0
       ? `${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
@@ -294,6 +291,8 @@ function App() {
           subtitle={
             page === 'customers'
               ? `ลูกค้าสมาชิก ${range}`
+              : page === 'lab2'
+              ? `ซ่อมกราฟแย่ · ข้อมูล ${range}`
               : `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${range}`
           }
         />
@@ -308,6 +307,8 @@ function App() {
         {!stats && !error && <Skeleton />}
 
         {stats && page === 'customers' && <CustomersPage rows={rows} colors={colors} />}
+
+        {stats && page === 'lab2' && <Lab2Tab rows={rows} />}
 
         {stats && page === 'sales' && (
           <main>

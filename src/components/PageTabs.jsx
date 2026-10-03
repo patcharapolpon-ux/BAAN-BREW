@@ -1,10 +1,11 @@
 import SegmentedControl from './SegmentedControl'
 
 // Switches between dashboard pages through the URL hash (#customers), so each page has
-// its own link and the browser back button works. No router needed for two pages.
+// its own link and the browser back button works. No router needed for a few pages.
 const PAGES = [
   { value: 'sales', label: 'ยอดขาย', hash: '' },
   { value: 'customers', label: 'ลูกค้า', hash: '#customers' },
+  { value: 'lab2', label: 'Lab 2.2', hash: '#lab2' },
 ]
 
 function PageTabs({ value }) {
