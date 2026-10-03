@@ -738,7 +738,8 @@ export function formatBahtCompact(value) {
 
 /** "27.6%" — share (0–1) as a percentage. signed adds "+" to positives: "+4.2%". */
 export function formatPercent(value, decimals = 1, signed = false) {
-  const text = `${(value * 100).toFixed(decimals)}%`
+  // toFixed turns −0.0004 into "-0.0"; a value that rounds to zero shouldn't carry a sign.
+  const text = `${(value * 100).toFixed(decimals).replace(/^-(?=0(\.0+)?$)/, '')}%`
   return signed && value > 0 ? `+${text}` : text
 }
 

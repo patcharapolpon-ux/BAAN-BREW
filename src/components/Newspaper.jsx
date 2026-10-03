@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { formatBaht, formatNumber, formatPercent, formatThaiDate } from '../lib/metrics'
+import { formatBaht, formatNumber, formatPercent, formatThaiDate, toThaiDate } from '../lib/metrics'
 import { buildPaper } from '../lib/newspaper'
 import { playSound } from '../lib/sound'
 import { loadLottery, loadProducts, useStatic } from '../lib/staticData'
@@ -61,11 +61,16 @@ function Paper({ paper }) {
                 </div>
               </div>
               <p className="mt-3 border-t border-dashed border-stone-500 pt-2 text-xs leading-relaxed">
-                เลขท้ายยอดขายวันล่าสุด ({formatBaht(lotto.lastDay.sales)}) คือ <b>{lotto.tail}</b>{' '}
+                {lotto.isDrawDay ? 'เลขท้ายยอดขายวันหวยออก' : 'ยังไม่มียอดวันหวยออก ใช้วันล่าสุดแทน'} ({formatBaht(lotto.lastDay.sales)}) คือ{' '}
+                <b>{lotto.tail}</b>{' '}
                 {lotto.hit ? '🎉 ถูกเลขท้าย 2 ตัว! เลี้ยงกาแฟทั้งร้าน' : '… ไม่ถูก ปลอบใจด้วยลาเต้เย็น'}
                 <br />
-                ทั้ง {lotto.luck.total} งวดที่ผ่านมา ร้านเคย "ถูกหวย" {lotto.wins.length} งวด · วันหวยออกขาย{' '}
-                {formatPercent(lotto.luck.averageLift, 1, true)} จากปกติ
+                {lotto.luck.total > 0 && (
+                  <>
+                    ทั้ง {lotto.luck.total} งวดที่ผ่านมา ร้านเคย "ถูกหวย" {lotto.wins.length} งวด · วันหวยออกขาย{' '}
+                    {formatPercent(lotto.luck.averageLift, 1, true)} จากปกติ
+                  </>
+                )}
               </p>
             </section>
           )}
@@ -127,22 +132,51 @@ function Newspaper({ rows, onClose }) {
   const products = useStatic(loadProducts)
   const lottery = useStatic(loadLottery)
   const [lotteryTimedOut, setLotteryTimedOut] = useState(false)
+  // Back issues: one per lottery draw from the shop's first day on, newest first. null = latest.
+  const [drawDate, setDrawDate] = useState(null)
+  const issues = useMemo(() => {
+    if (!lottery) return []
+    const first = rows.reduce((min, r) => (r.datetime < min ? r.datetime : min), rows[0]?.datetime ?? '')
+    return lottery.draws.map((d) => d.date).filter((d) => d >= toThaiDate(first)).reverse()
+  }, [lottery, rows])
+  const current = drawDate ?? issues[0] ?? null
+  const at = issues.indexOf(current)
+  const goTo = (date) => {
+    if (!date || date === current) return
+    playSound('whoosh')
+    setTimeout(() => playSound('thud'), 900)
+    setDrawDate(date)
+  }
+  const older = () => goTo(issues[at + 1])
+  const newer = () => goTo(issues[at - 1])
   // Don't wait forever for lottery.json: after 3 s print the paper without the lottery box.
   useEffect(() => {
     const t = setTimeout(() => setLotteryTimedOut(true), 3000)
     return () => clearTimeout(t)
   }, [])
   const ready = products && (lottery || lotteryTimedOut)
-  const paper = useMemo(() => (ready ? buildPaper(rows, products, lottery) : null), [ready, rows, products, lottery])
+  const paper = useMemo(() => (ready ? buildPaper(rows, products, lottery, current) : null), [ready, rows, products, lottery, current])
+
+  // ← older issue, → newer issue. Re-subscribed each render so it always sees the current issue.
+  useEffect(() => {
+    const onArrow = (e) => {
+      if (e.target.closest?.('select')) return // the dropdown handles its own arrows
+      if (e.key === 'ArrowLeft') older()
+      if (e.key === 'ArrowRight') newer()
+    }
+    window.addEventListener('keydown', onArrow)
+    return () => window.removeEventListener('keydown', onArrow)
+  })
 
   useEffect(() => {
     playSound('whoosh')
     const t = setTimeout(() => playSound('thud'), 900)
     const onKey = (e) => {
-      if (e.key !== 'Escape') return
-      e.preventDefault()
-      e.stopPropagation()
-      onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }
     }
     window.addEventListener('keydown', onKey, true)
     const { overflow } = document.documentElement.style
@@ -156,15 +190,35 @@ function Newspaper({ rows, onClose }) {
 
   return createPortal(
     <div className="paper-overlay overlay-in fixed inset-0 z-[80] overflow-y-auto bg-stone-900/85 py-4 sm:py-8" role="dialog" aria-modal="true" aria-label="หนังสือพิมพ์บ้านบรูรายวัน" onClick={onClose}>
-      <div className="paper-controls sticky top-0 z-10 mx-auto mb-3 flex max-w-5xl justify-end gap-2 px-3">
-        <button type="button" onClick={(e) => (e.stopPropagation(), window.print())} className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-stone-900 shadow hover:bg-white">
+      <div className="paper-controls sticky top-0 z-10 mx-auto mb-3 flex max-w-5xl flex-wrap items-center justify-end gap-2 px-3" onClick={(e) => e.stopPropagation()}>
+        {issues.length > 1 && (
+          <div className="mr-auto flex items-center gap-1 rounded-full bg-white/90 p-1 text-sm text-stone-900 shadow">
+            <button type="button" onClick={older} disabled={at >= issues.length - 1} className="grid size-8 place-items-center rounded-full hover:bg-stone-200 disabled:opacity-30" aria-label="ฉบับก่อนหน้า">
+              ◀
+            </button>
+            <label className="flex items-center gap-1">
+              <span className="hidden sm:inline">📅 ฉบับวันหวยออก</span>
+              <select value={current ?? ''} onChange={(e) => goTo(e.target.value)} className="rounded-full bg-transparent px-1 py-1 font-medium" aria-label="เลือกฉบับ">
+                {issues.map((d) => (
+                  <option key={d} value={d}>
+                    {formatThaiDate(d, { day: 'numeric', month: 'short', year: '2-digit' })}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" onClick={newer} disabled={at <= 0} className="grid size-8 place-items-center rounded-full hover:bg-stone-200 disabled:opacity-30" aria-label="ฉบับถัดไป">
+              ▶
+            </button>
+          </div>
+        )}
+        <button type="button" onClick={() => window.print()} className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-stone-900 shadow hover:bg-white">
           🖨️ พิมพ์
         </button>
         <button type="button" onClick={onClose} className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-stone-900 shadow hover:bg-white" aria-label="ปิด">
           ✕ ปิด
         </button>
       </div>
-      <div className="paper-spin px-3" onClick={(e) => e.stopPropagation()}>
+      <div key={paper?.date} className="paper-spin px-3" onClick={(e) => e.stopPropagation()}>
         {paper ? <Paper paper={paper} /> : <p className="py-20 text-center text-white">กำลังเรียงพิมพ์…</p>}
       </div>
     </div>,
