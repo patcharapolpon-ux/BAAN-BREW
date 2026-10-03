@@ -169,9 +169,23 @@ function Header({ subtitle, preference, onThemeChange, sign }) {
 }
 
 // Lab 3 tabs load the Firebase SDK only when opened, so the sales page stays light.
-// Without a filled-in .env they show the course's setup guide instead.
+// Without a filled-in .env they show the course's setup guide instead. Its white card relies on
+// inherited dark text, so it gets that here (the live tab isn't inside a CoursePanel).
+function LightSetupGuide({ SetupGuide }) {
+  return (
+    <div className="text-stone-900 [color-scheme:light]">
+      <SetupGuide />
+    </div>
+  )
+}
 const firebaseTab = (load) =>
-  lazy(() => import('./lab3/firebase').then((m) => (m.isConfigured ? load() : import('./lab3/SetupGuide'))))
+  lazy(() =>
+    import('./lab3/firebase').then((m) =>
+      m.isConfigured
+        ? load()
+        : import('./lab3/SetupGuide').then((s) => ({ default: () => <LightSetupGuide SetupGuide={s.default} /> })),
+    ),
+  )
 const LiveTab = firebaseTab(() => import('./lab3/LiveTab'))
 const RulesTester = firebaseTab(() => import('./lab3/RulesTester'))
 
