@@ -1,9 +1,11 @@
 // Lab 3.2 · Real-time sales dashboard from Firestore (Prompt 3.2B) with the sale form beside it (3.2C).
+// Lab 3.3 · Only signed-in users see it (Prompt 3.3A); signed-out visitors get a Google sign-in card.
 // Uses the dashboard's own metrics.js and components, so it follows the theme like the other tabs.
 import { useEffect, useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { collection, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore'
-import { db } from './firebase.js'
+import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
+import { auth, db, googleProvider } from './firebase.js'
 import { addDays, todayBangkok } from './time.js'
 import { BRANCHES } from './saleModel.js'
 import SaleForm from './SaleForm.jsx'
@@ -41,7 +43,94 @@ const ERROR_TEXT = {
 }
 const errorText = (e) => ERROR_TEXT[e.code] ?? `โหลดข้อมูลไม่สำเร็จ: ${e.message}`
 
+const AUTH_ERRORS = {
+  'auth/unauthorized-domain': 'เว็บนี้ยังไม่ได้รับอนุญาตให้ล็อกอิน เพิ่มโดเมนใน Firebase console → Authentication → Settings → Authorized domains',
+  'auth/operation-not-allowed': 'ยังไม่ได้เปิดล็อกอินด้วย Google ใน Firebase console → Authentication → Sign-in method',
+  'auth/popup-blocked': 'เบราว์เซอร์บล็อกหน้าต่างล็อกอิน อนุญาตป๊อปอัปสำหรับเว็บนี้แล้วลองใหม่',
+  'auth/popup-closed-by-user': 'หน้าต่างล็อกอินถูกปิดก่อนเสร็จ กดเข้าสู่ระบบอีกครั้งได้เลย',
+}
+
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 48 48" className="size-5" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  )
+}
+
+function SignInCard({ onSignIn, error }) {
+  return (
+    <div className="rise mx-auto max-w-md rounded-2xl border border-line bg-surface/85 p-6 text-center shadow-card backdrop-blur-sm sm:p-8">
+      <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-surface-2 text-2xl" aria-hidden="true">
+        🔒
+      </div>
+      <h2 className="mt-4 text-lg font-medium text-ink">เข้าสู่ระบบเพื่อดูยอดขายสด</h2>
+      <p className="mt-1 text-sm text-muted">ยอดขายสดและการบันทึกยอดขายใช้ได้เฉพาะพนักงานที่ล็อกอินแล้ว</p>
+      <button
+        type="button"
+        onClick={onSignIn}
+        data-sound="select"
+        className="mt-6 inline-flex h-11 items-center gap-3 rounded-xl border border-line bg-white px-5 font-medium text-stone-800 shadow-card transition hover:-translate-y-0.5 active:scale-[0.98]"
+      >
+        <GoogleIcon />
+        เข้าสู่ระบบด้วย Google
+      </button>
+      {error && (
+        <p role="alert" className="mt-4 text-sm text-red-500">
+          ❌ {error}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function UserChip({ user, onSignOut }) {
+  const name = user.displayName || user.email
+  return (
+    <div className="flex items-center gap-2 rounded-full border border-line bg-surface/80 py-1 pr-1 pl-1 shadow-card">
+      {user.photoURL ? (
+        <img src={user.photoURL} alt="" referrerPolicy="no-referrer" className="size-7 rounded-full" />
+      ) : (
+        <span className="grid size-7 place-items-center rounded-full bg-accent text-sm font-medium text-surface" aria-hidden="true">
+          {name?.[0]?.toUpperCase()}
+        </span>
+      )}
+      <span className="max-w-40 truncate text-sm text-ink">{name}</span>
+      <button type="button" onClick={onSignOut} className="h-7 rounded-full px-3 text-xs text-muted transition hover:bg-surface-2 hover:text-ink">
+        ออกจากระบบ
+      </button>
+    </div>
+  )
+}
+
+// Gate: the dashboard (and its onSnapshot) only mounts once someone is signed in.
 function LiveTab({ colors }) {
+  const [user, setUser] = useState(undefined) // undefined = still checking, null = signed out
+  const [authError, setAuthError] = useState(null)
+
+  useEffect(() => onAuthStateChanged(auth, setUser), [])
+
+  const signIn = () => {
+    setAuthError(null)
+    signInWithPopup(auth, googleProvider).catch((e) => setAuthError(AUTH_ERRORS[e.code] ?? `เข้าสู่ระบบไม่สำเร็จ: ${e.message}`))
+  }
+
+  if (user === undefined) return <p className="text-muted">กำลังตรวจสอบการเข้าสู่ระบบ…</p>
+  if (!user) return <SignInCard onSignIn={signIn} error={authError} />
+  return (
+    <>
+      <div className="rise mb-4 flex justify-end sm:mb-6">
+        <UserChip user={user} onSignOut={() => signOut(auth)} />
+      </div>
+      <LiveDashboard colors={colors} user={user} />
+    </>
+  )
+}
+
+function LiveDashboard({ colors, user }) {
   const isMobile = useIsMobile()
   const [days, setDays] = useState(7)
   const [branch, setBranch] = useState(null) // null = all branches (filtered in the browser, no extra query)
@@ -242,7 +331,7 @@ function LiveTab({ colors }) {
       </main>
 
       <aside className="lg:sticky lg:top-24 lg:self-start">
-        <SaleForm products={products} />
+        <SaleForm products={products} uid={user.uid} />
       </aside>
     </div>
   )

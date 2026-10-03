@@ -7,7 +7,6 @@ import { BRANCHES, MAX_QTY, PAYMENTS, buildSale, validateSaleForm } from './sale
 import { formatBaht } from '../lib/metrics'
 
 const EMPTY = { branch: '', product_id: '', qty: '1', payment_method: PAYMENTS[0], customer_id: '' }
-const UID = 'anonymous' // Lab 3.3 replaces this with the signed-in user
 
 const inputClass =
   'mt-1 block h-10 w-full rounded-xl border border-line bg-surface-2 px-3 text-sm text-ink focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 aria-invalid:border-red-500'
@@ -22,7 +21,8 @@ function Field({ label, error, children }) {
   )
 }
 
-function SaleForm({ products }) {
+// uid = the signed-in user; saved as created_by so Security Rules can check who wrote it.
+function SaleForm({ products, uid }) {
   const [form, setForm] = useState(EMPTY)
   const [errors, setErrors] = useState({})
   const [checked, setChecked] = useState(false) // show errors as you type only after the first save attempt
@@ -46,7 +46,7 @@ function SaleForm({ products }) {
     setChecked(true)
     if (Object.keys(found).length > 0) return
 
-    const { id, data } = buildSale(form, product, { uid: UID })
+    const { id, data } = buildSale(form, product, { uid })
     setStatus({ type: 'saving' })
     try {
       await setDoc(doc(db, 'sales', id), { ...data, created_at: serverTimestamp() })
