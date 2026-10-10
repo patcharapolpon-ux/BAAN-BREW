@@ -403,7 +403,12 @@ function App() {
         {page === 'rules' && <CoursePanel><RulesTester /></CoursePanel>}
 
         {isAnalytics && (!DEMO || rows) && (
-          <CoursePanel>{page === 'insights' ? <InsightsTab rows={rows} /> : <ForecastTab rows={rows} />}</CoursePanel>
+          // Lab 4 tabs are themed with the dashboard tokens, so they skip the light CoursePanel.
+          <main>
+            <Suspense fallback={<div className="skeleton h-48 rounded-3xl" />}>
+              {page === 'insights' ? <InsightsTab rows={rows} /> : <ForecastTab rows={rows} />}
+            </Suspense>
+          </main>
         )}
 
         {page === 'play' && (
