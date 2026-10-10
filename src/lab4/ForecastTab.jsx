@@ -2,8 +2,9 @@
 // คำนวณในเบราว์เซอร์จาก analytics/daily (ยอดรายวันแยกสาขา ~2,700 แถว) จึงเปลี่ยนสาขาได้ทันทีโดยไม่อ่าน Firestore เพิ่ม
 import { useMemo, useState } from "react";
 import {
-  ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
+  ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceDot,
 } from "recharts";
+import { addDays } from "../lab3/time.js";
 import { AnalyticsShell, Card, Pending, Insight, MAIN, GREEN, MUTED, INK, thaiDay } from "./ui.jsx";
 import { useAnalytics } from "./useAnalytics.js";
 import { toSeries } from "../lib/analytics/daily.js";
@@ -165,6 +166,56 @@ function Stat({ label, value, note, muted }) {
   );
 }
 
+// Lab 4.5B · ซูมดูสาขานั้น ±28 วันรอบวันที่คลิก: ยอดจริง เทียบเส้นประ "ค่าปกติ" จาก scoreAnomalies
+const LOW = "#dc2626";  // ต่ำกว่าปกติ = แดง
+const HIGH = "#f59e0b"; // สูงกว่าปกติ = ส้ม
+function FocusChart({ all, focus, onClose }) {
+  const from = addDays(focus.date, -28);
+  const to = addDays(focus.date, 28);
+  // all มีทุกวันที่คำนวณได้ (รวมวันหยุด) จึงได้ทั้งยอดจริงและค่าปกติของแต่ละวันในช่วงนี้
+  const data = all
+    .filter((a) => a.branch === focus.branch && a.date >= from && a.date <= to)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const color = focus.change < 0 ? LOW : HIGH;
+  return (
+    <div className="mb-4 rounded-lg border border-stone-200 p-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-medium">
+            สาขา{focus.branch} · {thaiDay(focus.date)}{" "}
+            <span style={{ color }}>
+              {focus.change < 0 ? "▼ ต่ำกว่าปกติ" : "▲ สูงกว่าปกติ"} {Math.round(Math.abs(focus.change) * 100)}%
+            </span>
+          </div>
+          <div className="text-xs text-stone-500">±28 วันรอบวันที่เลือก · เส้นประ = ค่าปกติ (ค่ากลางของวันเดียวกันของสัปดาห์ 8 สัปดาห์ก่อน)</div>
+        </div>
+        <button onClick={onClose} aria-label="ปิดกราฟ"
+                className="rounded-lg px-3 py-1 text-sm text-stone-600 ring-1 ring-stone-300 hover:bg-stone-100">
+          ✕ ปิด
+        </button>
+      </div>
+      <div className="mt-2 h-60">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={data} margin={{ top: 12, right: 12, left: 4, bottom: 0 }}>
+            <CartesianGrid vertical={false} stroke="#eee" />
+            <XAxis dataKey="date" tickFormatter={shortDay} minTickGap={28} tick={{ fontSize: 12 }} />
+            <YAxis tickFormatter={fmtShortBaht} width={56} domain={[0, "auto"]} tick={{ fontSize: 12 }} />
+            <Tooltip labelFormatter={(d) => {
+              const h = data.find((x) => x.date === d)?.holiday;
+              return `${thaiDay(d)}${h ? ` · ${h}` : ""}`;
+            }} formatter={(v, n) => [fmtBaht(v), n]} />
+            <Legend wrapperStyle={{ fontSize: 13 }} />
+            <ReferenceLine x={focus.date} stroke={color} strokeOpacity={0.4} />
+            <Line name="ยอดจริง" dataKey="actual" stroke={INK} strokeWidth={2} dot={false} isAnimationActive={false} />
+            <Line name="ค่าปกติ" dataKey="expected" stroke={MUTED} strokeWidth={2} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+            <ReferenceDot x={focus.date} y={focus.actual} r={6} fill={color} stroke="#fff" strokeWidth={2} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
 function AnomalyCard({ daily, holidays }) {
   const [focus, setFocus] = useState(null);
   const result = useMemo(() => tryRun(() => scoreAnomalies(daily, holidays)), [daily, holidays]);
@@ -175,7 +226,7 @@ function AnomalyCard({ daily, holidays }) {
   return (
     <Card title="วันที่ยอดขายผิดปกติ 15 อันดับ"
           sub="เทียบกับค่ากลางของวันเดียวกันของสัปดาห์ใน 8 สัปดาห์ก่อน · ไม่นับวันหยุดราชการ">
-      {/* Lab 4.5B: เมื่อคลิกแถว (focus) ให้แสดงกราฟยอดจริงเทียบค่าปกติ ±4 สัปดาห์รอบวันนั้น */}
+      {focus && <FocusChart all={all} focus={focus} onClose={() => setFocus(null)} />}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[600px] text-sm tabular-nums">
           <thead className="text-left text-stone-500">
