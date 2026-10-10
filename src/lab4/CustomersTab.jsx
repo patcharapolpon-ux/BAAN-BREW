@@ -1,5 +1,5 @@
 // Lab 4.1–4.2 · ลูกค้าและเมนู: RFM, Cohort, ABC
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ResponsiveContainer, BarChart, Bar, ComposedChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LabelList, Cell, ReferenceLine,
@@ -8,6 +8,8 @@ import { AnalyticsShell, Card, ChartFrame, GlassTip, Pending, Insight, pct, thai
 import { useAnalytics } from "./useAnalytics.js";
 import { SEGMENTS } from "../lib/analytics/rfm.js";
 import { fmtBaht } from "../lib/metrics.js";
+import ToyBoundary from "../components/ToyBoundary.jsx";
+import { GhostHunt } from "./toys.jsx";
 
 const SEG_TH = Object.fromEntries(SEGMENTS.map((s) => [s.id, s]));
 const SEG_EMOJI = { Champions: "👑", Loyal: "💛", New: "🌱", "Need Attention": "👀", "At Risk": "⚠️", Lost: "👻" };
@@ -21,7 +23,7 @@ function RfmCard({ rfm, onPick, picked }) {
   const risk = rfm.segments.find((s) => s.segment === "At Risk");
   const pick = (d) => onPick?.(d.payload?.segment ?? d.segment);
   return (
-    <Card emoji="👑" title="RFM · กลุ่มลูกค้าสมาชิก" sub="สัดส่วนจำนวนลูกค้า เทียบกับสัดส่วนยอดซื้อ · คลิกแท่งหรือแถวเพื่อดูรายชื่อ">
+    <Card emoji="👑" title="RFM · กลุ่มลูกค้าสมาชิก" sub="สัดส่วนจำนวนลูกค้า เทียบกับสัดส่วนยอดซื้อ · คลิกแท่งหรือแถวเพื่อดูรายชื่อ (ลองกด 👻 ดูสิ)">
       <ChartFrame className="h-80">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 8, right: 52 }} barGap={3}>
@@ -312,12 +314,24 @@ function AbcCard({ abc }) {
 export default function CustomersTab({ source }) {
   const state = useAnalytics(source);
   const [picked, setPicked] = useState(null);
+  const [hunt, setHunt] = useState(false);
+  const endHunt = useCallback(() => setHunt(false), []);
+  // เลือกกลุ่ม "หายไปแล้ว" = ปล่อยผีลูกค้าออกมาให้ไล่จับ
+  const pick = (s) => {
+    setPicked((p) => (p === s ? null : s));
+    if (s === "Lost" && picked !== "Lost") setHunt(true);
+  };
   return (
     <AnalyticsShell source={source} state={state} title="ลูกค้าและเมนู" emoji="👥" lab="Lab 4.1 – 4.2"
                     tagline="ใครคือลูกค้าตัวจริง ใครกำลังจะหาย และเมนูไหนแบกร้าน">
       {(d) => (
         <div className="space-y-6">
-          <RfmCard rfm={d.rfm} picked={picked} onPick={(s) => setPicked((p) => (p === s ? null : s))} />
+          <RfmCard rfm={d.rfm} picked={picked} onPick={pick} />
+          {hunt && !d.rfm.error && (
+            <ToyBoundary onError={endHunt}>
+              <GhostHunt customers={d.rfm.segments.find((s) => s.segment === "Lost")?.customers ?? 0} onClose={endHunt} />
+            </ToyBoundary>
+          )}
           {picked && !d.rfm.error && <SegmentCustomers key={picked} rfm={d.rfm} segment={picked} onClose={() => setPicked(null)} />}
           <CohortCard cohort={d.cohort} />
           <AbcCard abc={d.abc} />

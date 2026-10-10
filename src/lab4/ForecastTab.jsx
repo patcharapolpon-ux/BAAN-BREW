@@ -1,6 +1,6 @@
 // Lab 4.4–4.5 · พยากรณ์และวันผิดปกติ
 // คำนวณในเบราว์เซอร์จาก analytics/daily (ยอดรายวันแยกสาขา ~2,700 แถว) จึงเปลี่ยนสาขาได้ทันทีโดยไม่อ่าน Firestore เพิ่ม
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceDot,
 } from "recharts";
@@ -11,6 +11,9 @@ import { toSeries } from "../lib/analytics/daily.js";
 import { seasonalForecast, backtest } from "../lib/analytics/forecast.js";
 import { scoreAnomalies } from "../lib/analytics/anomaly.js";
 import { fmtBaht, fmtShortBaht } from "../lib/metrics.js";
+import ToyBoundary from "../components/ToyBoundary.jsx";
+import { playSound } from "../lib/sound.js";
+import { FortuneOverlay, SalesQuake } from "./toys.jsx";
 
 const BRANCHES = ["สยาม", "สีลม", "อารีย์", "บางนา", "มหาวิทยาลัย"];
 const HORIZON = 28;
@@ -252,6 +255,8 @@ const MEDAL = ["🥇", "🥈", "🥉"];
 
 function AnomalyCard({ daily, holidays }) {
   const [focus, setFocus] = useState(null);
+  const [quake, setQuake] = useState(null);
+  const endQuake = useCallback(() => setQuake(null), []);
   const result = useMemo(() => tryRun(() => scoreAnomalies(daily, holidays)), [daily, holidays]);
   if (result.error) return <Card emoji="🚨" title="วันที่ยอดขายผิดปกติ"><Pending lab="Lab 4.5" error={result.error} /></Card>;
   const all = result.value;
@@ -260,7 +265,8 @@ function AnomalyCard({ daily, holidays }) {
   const maxChange = Math.max(...top.map((a) => Math.abs(a.change)));
   return (
     <Card emoji="🚨" title="วันที่ยอดขายผิดปกติ 15 อันดับ"
-          sub="เทียบกับค่ากลางของวันเดียวกันของสัปดาห์ใน 8 สัปดาห์ก่อน · ไม่นับวันหยุดราชการ · คลิกแถวเพื่อซูม">
+          sub="เทียบกับค่ากลางของวันเดียวกันของสัปดาห์ใน 8 สัปดาห์ก่อน · ไม่นับวันหยุดราชการ · คลิกแถวเพื่อซูม (อันดับ 🥇 ระวังแผ่นดินไหว)">
+      {quake && <ToyBoundary onError={endQuake}><SalesQuake key={quake.date + quake.branch} anomaly={quake} onDone={endQuake} /></ToyBoundary>}
       {focus && <FocusChart key={focus.date + focus.branch} all={all} focus={focus} onClose={() => setFocus(null)} />}
       <div className="overflow-x-auto">
         <table className="lab4-table w-full min-w-[640px] text-sm tabular-nums">
@@ -273,9 +279,9 @@ function AnomalyCard({ daily, holidays }) {
               const sel = focus && focus.date === a.date && focus.branch === a.branch;
               const low = a.change < 0;
               return (
-                <tr key={a.date + a.branch} onClick={() => setFocus(sel ? null : a)} data-sound="select"
+                <tr key={a.date + a.branch} onClick={() => { setFocus(sel ? null : a); if (!sel && i === 0) setQuake(a); }} data-sound="select"
                     className={`cursor-pointer ${sel ? "is-picked" : ""}`} style={{ animationDelay: `${i * 40}ms` }}>
-                  <td className="py-2 pl-2 text-muted">{MEDAL[i] ?? i + 1}</td>
+                  <td className="py-2 pl-2 text-muted"><span className={i === 0 ? "lab4-siren" : ""}>{MEDAL[i] ?? i + 1}</span></td>
                   <td className="text-ink">{thaiDay(a.date)} <span className="text-muted">{new Date(a.date + "T00:00:00").toLocaleDateString("th-TH", { weekday: "short" })}</span></td>
                   <td className="text-ink-2">{a.branch}</td>
                   <td className="text-right text-ink">{fmtBaht(a.actual)}</td>
@@ -302,11 +308,15 @@ function AnomalyCard({ daily, holidays }) {
 
 export default function ForecastTab({ source }) {
   const state = useAnalytics(source);
+  const [ball, setBall] = useState(false);
+  const closeBall = useCallback(() => setBall(false), []);
   return (
     <AnalyticsShell source={source} state={state} title="พยากรณ์และวันผิดปกติ" emoji="🔮" lab="Lab 4.4 – 4.5"
-                    tagline="สัปดาห์หน้าจะขายได้เท่าไร และวันไหนที่ยอดแปลกจนต้องโทรถาม">
+                    tagline="สัปดาห์หน้าจะขายได้เท่าไร และวันไหนที่ยอดแปลกจนต้องโทรถาม"
+                    emojiHint="ให้ลูกแก้วทำนายยอดพรุ่งนี้" onEmoji={() => { playSound("secret"); setBall(true); }}>
       {(d) => d.daily.error ? <Pending lab="pipeline" error={d.daily.error} /> : (
         <div className="space-y-6">
+          {ball && <ToyBoundary onError={closeBall}><FortuneOverlay daily={d.daily.rows} abc={d.abc} onClose={closeBall} /></ToyBoundary>}
           {d.meta.alerts?.length > 0 && (
             <p role="alert" className="lab4-alert rounded-2xl p-4 text-sm font-medium">
               <span className="lab4-siren mr-1" aria-hidden="true">🚨</span> ยอดวันล่าสุดผิดปกติ: {d.meta.alerts.map((a) => `${a.branch} ${fmtBaht(a.actual)} (ปกติ ${fmtBaht(a.expected)})`).join(", ")}
