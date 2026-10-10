@@ -16,7 +16,7 @@ const HORIZON = 28;
 const shortDay = (iso) => new Date(iso + "T00:00:00").toLocaleDateString("th-TH", { day: "numeric", month: "short" });
 const tryRun = (f) => { try { return { value: f() }; } catch (e) { return { error: e.message }; } };
 
-function ForecastCard({ daily }) {
+function ForecastCard({ daily, abc }) {
   const [branch, setBranch] = useState(null);
   const result = useMemo(() => tryRun(() => {
     const series = toSeries(daily, branch);
@@ -35,6 +35,7 @@ function ForecastCard({ daily }) {
 
   const r = result.value;
   return (
+    <>
     <Card title="พยากรณ์ยอดขาย 28 วัน" sub="ค่าเฉลี่ยวันเดียวกันของสัปดาห์ 8 สัปดาห์ล่าสุด · แถบ = ช่วงที่คาดว่าครอบคลุมราว 80% ของวัน"
           right={<div className="flex flex-wrap gap-1">
             {[null, ...BRANCHES].map((b) => (
@@ -70,8 +71,86 @@ function ForecastCard({ daily }) {
               : `${branch ?? "ภาพรวม"}: สองวิธีแม่นพอ ๆ กัน (${r.bt.mapeSeasonal.toFixed(0)}% กับ ${r.bt.mapeFlat.toFixed(0)}%) ${branch ? "" : "เพราะสาขาออฟฟิศกับห้างขายดีคนละวัน พอรวมกันรูปแบบรายสัปดาห์จึงหักล้างกัน"}`}
             {" "}ใช้วางแผนสต็อกและกะพนักงานรายสัปดาห์ได้ แต่ไม่ควรใช้ตัดสินยอดรายวันของสาขาเดียว
           </Insight>
+          <BandNote bt={r.bt} branch={branch} />
         </>
       )}
+    </Card>
+    {r && <PrepCard abc={abc} next7={r.next7} band={r.bt.band} branch={branch} />}
+    </>
+  );
+}
+
+// Lab 4.4B · อธิบายว่าแถบช่วงคาดการณ์มาจากไหน (ตัวเลขเปลี่ยนตามสาขาที่เลือก)
+function BandNote({ bt, branch }) {
+  const pctBand = (bt.band * 100).toFixed(0);
+  return (
+    <details className="mt-3 rounded-lg border border-stone-200 px-3 py-2 text-sm text-stone-600">
+      <summary className="cursor-pointer font-medium text-stone-700">
+        แถบสีเขียวอ่อนคำนวณจากอะไร? ({branch ?? "รวมทุกสาขา"}: ±{pctBand}%)
+      </summary>
+      <ol className="mt-2 list-decimal space-y-1 pl-5">
+        <li>ซ่อนยอดจริง 28 วันล่าสุด แล้วให้วิธี "ดูวันในสัปดาห์" พยากรณ์จากข้อมูลก่อนหน้า (ย้อนทดสอบ)</li>
+        <li>ดูว่าแต่ละวันพลาดไปกี่ % เทียบกับค่าพยากรณ์ (ยอดจริง = พยากรณ์ × (1 + % พลาด))</li>
+        <li>หาส่วนเบี่ยงเบนมาตรฐาน (SD) ของ % พลาดทั้ง 28 วัน แล้วคูณ 1.28 ได้ ±{pctBand}%</li>
+        <li>แถบ = พยากรณ์ × (1 − {pctBand}%) ถึง พยากรณ์ × (1 + {pctBand}%) · ถ้าความคลาดเคลื่อนกระจายแบบระฆังคว่ำ ±1.28 SD จะครอบคลุมราว 80% ของวัน คือ 10 วันจะมีราว 8 วันที่ยอดจริงตกในแถบ</li>
+      </ol>
+      <p className="mt-2 text-stone-500">แถบกว้าง = ยอดรายวันของสาขานี้แกว่งมาก ทายยาก · แถบแคบ = ทายได้แม่น</p>
+    </details>
+  );
+}
+
+// Lab 4.4B · "ควรเตรียมของเท่าไร": ยอดคาดการณ์ 7 วัน × สัดส่วนยอดขายของเมนูกลุ่ม A (จาก ABC)
+function PrepCard({ abc, next7, band, branch }) {
+  const [showAll, setShowAll] = useState(false);
+  const title = `ควรเตรียมของเท่าไร · 7 วันข้างหน้า${branch ? ` · สาขา${branch}` : ""}`;
+  if (abc?.error || !abc?.items) return <Card title={title}><Pending lab="Lab 4.2 (ABC)" error={abc?.error ?? "ยังไม่มีผล ABC"} /></Card>;
+
+  const items = abc.items.filter((i) => i.cls === "A").map((i) => ({ ...i, week: next7 * i.share }));
+  const aShare = items.reduce((s, i) => s + i.share, 0);
+  const shown = showAll ? items : items.slice(0, 10);
+  return (
+    <Card title={title}
+          sub={`ยอดคาดการณ์ 7 วัน ${fmtBaht(next7)} × สัดส่วนยอดขายของเมนูกลุ่ม A ${items.length} เมนู (รวม ${(aShare * 100).toFixed(1)}% ของยอด)`}>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Stat label="ยอดคาดการณ์ 7 วัน" value={fmtBaht(next7)} note="จากการ์ดพยากรณ์ด้านบน" />
+        <Stat label={`เมนูกลุ่ม A ${items.length} เมนู ควรเตรียม`} value={fmtBaht(next7 * aShare)} note={`${(aShare * 100).toFixed(1)}% ของยอดคาดการณ์`} />
+        <Stat label="ถ้าเผื่อตามแถบคาดการณ์" value={fmtBaht(next7 * aShare * (1 + band))} note={`+${(band * 100).toFixed(0)}% กันของขาด (ขอบบนของแถบ)`} muted />
+      </div>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead className="text-left text-stone-500">
+            <tr>
+              <th className="py-1 font-medium">#</th>
+              <th className="font-medium">เมนู</th>
+              <th className="font-medium">หมวด</th>
+              <th className="text-right font-medium">สัดส่วนยอด</th>
+              <th className="text-right font-medium">ควรเตรียม 7 วัน</th>
+              <th className="text-right font-medium">เฉลี่ยต่อวัน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {shown.map((i) => (
+              <tr key={i.product_id} className="border-t border-stone-100">
+                <td className="py-1.5 text-stone-400 tabular-nums">{i.rank}</td>
+                <td>{i.name}</td>
+                <td className="text-stone-500">{i.category}</td>
+                <td className="text-right tabular-nums">{(i.share * 100).toFixed(1)}%</td>
+                <td className="text-right font-medium tabular-nums">{fmtBaht(i.week)}</td>
+                <td className="text-right tabular-nums text-stone-500">{fmtBaht(i.week / 7)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {items.length > 10 && (
+        <button onClick={() => setShowAll((v) => !v)} className="mt-2 text-sm text-stone-600 underline hover:text-stone-900">
+          {showAll ? "แสดง 10 เมนูแรก" : `ดูครบ ${items.length} เมนู`}
+        </button>
+      )}
+      <Insight>
+        ตัวเลขเป็นมูลค่าขาย (บาท) ไม่ใช่จำนวนแก้ว · สัดส่วนเมนูคิดจากทุกสาขาตลอดประวัติ
+        {branch ? ` สาขา${branch}อาจขายเมนูไม่เหมือนภาพรวม ควรใช้เป็นจุดตั้งต้น แล้วปรับตามประสบการณ์หน้าร้าน` : " ใช้เป็นจุดตั้งต้นในการสั่งวัตถุดิบ"}
+      </Insight>
     </Card>
   );
 }
@@ -144,7 +223,7 @@ export default function ForecastTab({ source }) {
               🚨 ยอดวันล่าสุดผิดปกติ: {d.meta.alerts.map((a) => `${a.branch} ${fmtBaht(a.actual)} (ปกติ ${fmtBaht(a.expected)})`).join(", ")}
             </p>
           )}
-          <ForecastCard daily={d.daily.rows} />
+          <ForecastCard daily={d.daily.rows} abc={d.abc} />
           <AnomalyCard daily={d.daily.rows} holidays={d.meta.holidays ?? {}} />
         </div>
       )}
