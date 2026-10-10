@@ -200,7 +200,7 @@ function RowCount({ n }) {
 }
 
 /** ส่วนหัวร่วม: ล็อกอิน, ความสดของข้อมูล, จำนวนเอกสารที่อ่าน */
-export function AnalyticsShell({ source, state, title, emoji, lab, tagline, children }) {
+export function AnalyticsShell({ source, state, title, emoji, lab, tagline, onEmoji, emojiHint, children }) {
   const { user, data, error } = state;
   const [authError, setAuthError] = useState(null);
   if (user === undefined) return <p className="text-muted">กำลังตรวจสอบการเข้าสู่ระบบ…</p>;
@@ -213,9 +213,18 @@ export function AnalyticsShell({ source, state, title, emoji, lab, tagline, chil
         <span className="lab4-orb lab4-orb-b" aria-hidden="true" />
         <div className="relative flex flex-wrap items-start justify-between gap-4">
           <div className="flex min-w-0 items-center gap-4">
-            <span className="lab4-float grid size-16 shrink-0 place-items-center rounded-3xl bg-surface/80 text-4xl shadow-card ring-1 ring-line sm:size-20 sm:text-5xl" aria-hidden="true">
-              {emoji}
-            </span>
+            {onEmoji ? (
+              // ไอคอนหัวหน้าที่กดได้ (เช่น ลูกแก้วหมอดู) มีวงกระเพื่อมและป้าย "กดสิ" ชวนให้ลอง
+              <button type="button" onClick={onEmoji} title={emojiHint} aria-label={emojiHint}
+                      className="lab4-float lab4-ping relative grid size-16 shrink-0 cursor-pointer place-items-center rounded-3xl bg-surface/80 text-4xl shadow-card ring-1 ring-line transition-transform hover:scale-110 sm:size-20 sm:text-5xl">
+                {emoji}
+                <span className="absolute -top-2 -right-3 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold whitespace-nowrap text-surface shadow-card">กดสิ!</span>
+              </button>
+            ) : (
+              <span className="lab4-float grid size-16 shrink-0 place-items-center rounded-3xl bg-surface/80 text-4xl shadow-card ring-1 ring-line sm:size-20 sm:text-5xl" aria-hidden="true">
+                {emoji}
+              </span>
+            )}
             <div className="min-w-0">
               {lab && <p className="text-xs font-medium tracking-[0.2em] text-accent uppercase">{lab}</p>}
               <h1 className="shimmer font-display text-3xl font-bold sm:text-4xl">{title}</h1>

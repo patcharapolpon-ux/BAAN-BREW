@@ -949,3 +949,79 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .lab4-hero, .lab4-orb, .lab4-float, .lab4-bulb, .lab4-stat-glow, .lab4-chip-on, .lab4-btn, .lab4-alert, .lab4-siren { animation: none !important; }
 }
+
+/* ─── Lab 4 toys (src/lab4/toys.jsx) ─────────────────────────────────────── */
+/* 🔮 Fortune teller: purple mist rising inside the dialog, a crystal ball that glows and bobs. */
+.lab4-mystic { background: radial-gradient(120% 80% at 50% 0%, color-mix(in oklab, #8b5cf6 18%, var(--surface)), var(--surface) 70%); }
+.lab4-smoke {
+  position: absolute;
+  bottom: -60px;
+  width: 120px;
+  height: 120px;
+  border-radius: 9999px;
+  background: #a78bfa;
+  opacity: 0;
+  filter: blur(30px);
+  animation: lab4-smoke 6s ease-in infinite;
+}
+@keyframes lab4-smoke {
+  20% { opacity: 0.35; }
+  100% { opacity: 0; transform: translate(20px, -480px) scale(2.2); }
+}
+.lab4-ball {
+  background: radial-gradient(circle at 35% 30%, color-mix(in oklab, #c4b5fd 60%, transparent), transparent 65%);
+  box-shadow: 0 0 40px 6px color-mix(in oklab, #8b5cf6 45%, transparent);
+  animation: lab4-ball 3s ease-in-out infinite;
+}
+@keyframes lab4-ball {
+  50% { transform: translateY(-8px) scale(1.04); box-shadow: 0 0 70px 14px color-mix(in oklab, #8b5cf6 60%, transparent); }
+}
+.lab4-caret { color: var(--accent); animation: lab4-blink 0.8s steps(1) infinite; }
+@keyframes lab4-blink { 50% { opacity: 0; } }
+
+/* Hero emoji that is a button: a "tap me" bubble with a ping ring. */
+.lab4-ping::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 2px solid var(--accent);
+  animation: lab4-ping 1.8s var(--ease-out) infinite;
+}
+@keyframes lab4-ping { from { opacity: 0.8; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+
+/* 👻 Ghost hunt: ghosts drift across the screen and bob; a caught one turns into a cup and fades. */
+.lab4-ghost-r { left: 0; animation: lab4-ghost-r linear infinite; }
+.lab4-ghost-l { left: 0; animation: lab4-ghost-l linear infinite; }
+@keyframes lab4-ghost-r { from { transform: translateX(-12vw); } to { transform: translateX(110vw); } }
+@keyframes lab4-ghost-l { from { transform: translateX(110vw); } to { transform: translateX(-12vw); } }
+.lab4-ghost-bob {
+  filter: drop-shadow(0 0 10px color-mix(in oklab, var(--accent-soft) 80%, transparent));
+  animation: lab4-bob 1.6s ease-in-out infinite alternate;
+  transition: transform 150ms var(--ease-spring);
+}
+.lab4-ghost-bob:hover { transform: scale(1.25) rotate(-8deg); }
+@keyframes lab4-bob { from { translate: 0 -10px; rotate: -6deg; } to { translate: 0 10px; rotate: 6deg; } }
+.lab4-caught { animation: lab4-caught 1.4s var(--ease-spring) forwards; }
+@keyframes lab4-caught {
+  0% { transform: scale(0.2) rotate(-30deg); }
+  30% { transform: scale(1.5) rotate(10deg); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.8); }
+}
+
+/* 🌋 Sales quake: the page shakes by --quake px (set from the Richter magnitude). */
+.lab4-quake main { animation: lab4-quake 110ms linear 13; }
+@keyframes lab4-quake {
+  0%, 100% { translate: 0 0; }
+  25% { translate: var(--quake) calc(var(--quake) * -0.5); rotate: 0.3deg; }
+  50% { translate: calc(var(--quake) * -1) calc(var(--quake) * 0.4); rotate: -0.3deg; }
+  75% { translate: calc(var(--quake) * 0.6) var(--quake); }
+}
+.lab4-seismo { stroke-dasharray: 1; stroke-dashoffset: 1; animation: lab4-draw 1.6s var(--ease-out) forwards; }
+@keyframes lab4-draw { to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .lab4-smoke, .lab4-ball, .lab4-ping::after, .lab4-ghost-bob { animation: none !important; }
+  .lab4-seismo { stroke-dashoffset: 0; }
+}
