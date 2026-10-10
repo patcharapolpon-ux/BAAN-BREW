@@ -798,3 +798,154 @@ body {
   .paper-spin { animation: none !important; padding: 0 !important; }
   .paper { box-shadow: none; max-width: none; }
 }
+
+/* ─── Lab 4 tabs (#insights, #forecast): same tokens as the dashboard, turned up to 11 ─── */
+/* Hero banner: an accent wash that slowly shifts, with two glowing orbs drifting behind the title. */
+.lab4-hero {
+  background:
+    linear-gradient(120deg, color-mix(in oklab, var(--accent) 14%, var(--surface)) 0%, var(--surface) 45%, color-mix(in oklab, var(--accent-soft) 30%, var(--surface)) 100%);
+  background-size: 200% 200%;
+  animation: rise var(--dur-slow) var(--ease-out) both, lab4-wash 14s ease-in-out infinite alternate;
+}
+@keyframes lab4-wash { to { background-position: 100% 100%; } }
+.lab4-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+  pointer-events: none;
+  animation: lab4-orbit 12s ease-in-out infinite alternate;
+}
+.lab4-orb-a { width: 220px; height: 220px; top: -90px; right: 12%; background: var(--accent); opacity: 0.28; }
+.lab4-orb-b { width: 180px; height: 180px; bottom: -110px; left: 8%; background: var(--accent-soft); opacity: 0.45; animation-duration: 16s; animation-delay: -5s; }
+@keyframes lab4-orbit { to { transform: translate(-60px, 30px) scale(1.25); } }
+
+/* Floating emoji badge (hero, login). */
+.lab4-float { animation: lab4-float 4s ease-in-out infinite; }
+@keyframes lab4-float {
+  0%, 100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-6px) rotate(4deg); }
+}
+
+/* Cards: a thin accent edge that lights up on hover, on top of the shared .card tilt/spotlight. */
+.lab4-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, var(--accent), transparent 40%, transparent 60%, var(--accent-soft));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.25;
+  transition: opacity var(--dur) var(--ease-out);
+  pointer-events: none;
+}
+.lab4-card:hover::after { opacity: 0.9; }
+
+/* Insight callout: soft accent glass with a bulb that "switches on" now and then. */
+.lab4-insight {
+  background: color-mix(in oklab, var(--accent) 9%, var(--surface-2));
+  border: 1px solid color-mix(in oklab, var(--accent) 22%, var(--line));
+  border-left: 4px solid var(--accent);
+}
+.lab4-bulb { animation: lab4-bulb 5s ease-in-out infinite; }
+@keyframes lab4-bulb {
+  0%, 82%, 100% { filter: none; transform: none; }
+  88% { filter: drop-shadow(0 0 8px #ffd54a) brightness(1.3); transform: scale(1.25) rotate(-8deg); }
+}
+
+/* Stat tile: a glow blob in the corner that breathes. */
+.lab4-stat-glow {
+  position: absolute;
+  right: -30px;
+  bottom: -30px;
+  width: 110px;
+  height: 110px;
+  border-radius: 9999px;
+  background: var(--accent);
+  opacity: 0.16;
+  filter: blur(26px);
+  pointer-events: none;
+  animation: lab4-breathe 4.5s ease-in-out infinite;
+}
+@keyframes lab4-breathe { 50% { opacity: 0.32; transform: scale(1.2); } }
+
+/* Selected chip and primary buttons: accent gradient with a moving sheen. */
+.lab4-chip-on, .lab4-btn {
+  color: var(--surface);
+  background: linear-gradient(110deg, var(--accent) 0%, color-mix(in oklab, var(--accent) 70%, var(--ink)) 50%, var(--accent) 100%);
+  background-size: 200% 100%;
+  box-shadow: 0 6px 18px -8px var(--accent);
+  animation: lab4-sheen 3s linear infinite;
+}
+.lab4-btn { transition: transform var(--dur) var(--ease-spring); }
+.lab4-btn:hover { transform: translateY(-2px) scale(1.03); }
+.lab4-btn:active { transform: scale(0.96); }
+@keyframes lab4-sheen { to { background-position: -200% 0; } }
+
+.lab4-demo {
+  color: color-mix(in oklab, #f5a524 70%, var(--ink));
+  background: color-mix(in oklab, #f5a524 14%, var(--surface));
+  border: 1px solid color-mix(in oklab, #f5a524 40%, var(--line));
+}
+
+/* Tables: rows slide in, hover tints with the accent, the picked row gets an accent bar. */
+.lab4-table thead th { color: var(--muted); font-weight: 500; }
+.lab4-table tbody tr {
+  border-top: 1px solid var(--line);
+  transition: background-color var(--dur-fast) var(--ease-out), transform var(--dur) var(--ease-spring);
+  animation: lab4-row-in 500ms var(--ease-out) backwards;
+}
+.lab4-table tbody tr:hover { background: color-mix(in oklab, var(--accent) 8%, transparent); }
+.lab4-table tbody tr.is-picked {
+  background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+@keyframes lab4-row-in { from { opacity: 0; transform: translateX(-12px); } }
+
+/* Magnitude bar behind "% vs normal" in the anomaly table — grows in from the left. */
+.lab4-bar {
+  height: 6px;
+  border-radius: 9999px;
+  transform-origin: left;
+  animation: lab4-grow 900ms var(--ease-out) backwards;
+}
+@keyframes lab4-grow { from { transform: scaleX(0); } }
+
+/* Cohort heatmap cells pop in diagonally (delay set per cell), then zoom on hover. */
+.lab4-cell {
+  animation: lab4-cell-in 450ms var(--ease-spring) backwards;
+  transition: transform 200ms var(--ease-spring), box-shadow 200ms var(--ease-out);
+}
+.lab4-cell:hover {
+  position: relative;
+  z-index: 2;
+  transform: scale(1.35);
+  box-shadow: 0 6px 18px -4px color-mix(in oklab, var(--accent) 70%, transparent);
+}
+@keyframes lab4-cell-in { from { opacity: 0; transform: scale(0.3) rotate(-12deg); } }
+
+/* Live alert banner: a red glow that pulses and a siren that wobbles. */
+.lab4-alert {
+  color: color-mix(in oklab, #e5484d 72%, var(--ink));
+  background: color-mix(in oklab, #e5484d 12%, var(--surface));
+  border: 1px solid color-mix(in oklab, #e5484d 45%, var(--line));
+  animation: lab4-alarm 1.8s ease-in-out infinite;
+}
+@keyframes lab4-alarm {
+  50% { box-shadow: 0 0 0 4px color-mix(in oklab, #e5484d 18%, transparent), 0 0 28px -4px #e5484d; }
+}
+.lab4-siren { display: inline-block; animation: lab4-siren 0.9s ease-in-out infinite; }
+@keyframes lab4-siren { 0%, 100% { transform: rotate(-14deg); } 50% { transform: rotate(14deg) scale(1.15); } }
+
+/* Expandable explainer (<details>): chevron turns, body fades in. */
+.lab4-details summary { list-style: none; }
+.lab4-details summary::-webkit-details-marker { display: none; }
+.lab4-details summary::before { content: "▸"; display: inline-block; margin-right: 0.5rem; color: var(--accent); transition: transform var(--dur) var(--ease-spring); }
+.lab4-details[open] summary::before { transform: rotate(90deg); }
+.lab4-details[open] > :not(summary) { animation: rise 400ms var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lab4-hero, .lab4-orb, .lab4-float, .lab4-bulb, .lab4-stat-glow, .lab4-chip-on, .lab4-btn, .lab4-alert, .lab4-siren { animation: none !important; }
+}
