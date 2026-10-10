@@ -198,6 +198,37 @@ const LiveTab = firebaseTab(() => import('./lab3/LiveTab'))
 const RulesTester = firebaseTab(() => import('./lab3/RulesTester'))
 const PlayTab = firebaseTab(() => import('./play/PlayTab'))
 
+const loadCsv = (url) =>
+  new Promise((resolve, reject) =>
+    Papa.parse(url, { download: true, header: true, skipEmptyLines: true, complete: (r) => resolve(r.data), error: reject }),
+  )
+
+// Lab 4 tabs read the 5 pre-built docs in Firestore's `analytics` collection (5 reads, not 53k).
+// With ?demo the same docs are built in the browser from the CSVs, so no Firebase or quota is needed.
+const DEMO = new URLSearchParams(window.location.search).has('demo')
+const analyticsTab = (load) =>
+  lazy(async () => {
+    const [{ isConfigured }, { firestoreSource, createDemoSource }, { default: Tab }] = await Promise.all([
+      import('./lab3/firebase'),
+      import('./lab3/dataSource'),
+      load(),
+    ])
+    if (!DEMO) {
+      if (isConfigured) return { default: () => <Tab source={firestoreSource} /> }
+      const s = await import('./lab3/SetupGuide')
+      return { default: () => <LightSetupGuide SetupGuide={s.default} /> }
+    }
+    const [products, holidayRows] = await Promise.all([loadCsv('/products.csv'), loadCsv('/thai_holidays.csv').catch(() => [])])
+    const holidays = Object.fromEntries(holidayRows.map((h) => [h.date, h.holiday]))
+    function DemoTab({ rows }) {
+      const source = useMemo(() => createDemoSource(prepareRows(rows), products, holidays), [rows])
+      return <Tab source={source} />
+    }
+    return { default: DemoTab }
+  })
+const InsightsTab = analyticsTab(() => import('./lab4/CustomersTab'))
+const ForecastTab = analyticsTab(() => import('./lab4/ForecastTab'))
+
 // The course pages (Lab 2.2, Lab 3) are styled for a light page (white cards, stone text),
 // so they keep their own light panel even when the dashboard is in dark or neon mode.
 function CoursePanel({ children }) {
@@ -304,9 +335,10 @@ function App() {
     showToast({ icon: '🏆', title: `สาขา${branch} ขายดีอันดับ 1!`, text: `ครองยอดขาย ${formatPercent(topBranch.share, 0)} ของทุกสาขา` })
   }, [branch, topBranch])
 
-  const PAGE_BY_HASH = { '#customers': 'customers', '#lab2': 'lab2', '#live': 'live', '#rules': 'rules', '#play': 'play' }
+  const PAGE_BY_HASH = { '#customers': 'customers', '#lab2': 'lab2', '#live': 'live', '#rules': 'rules', '#play': 'play', '#insights': 'insights', '#forecast': 'forecast' }
   const page = PAGE_BY_HASH[hash] ?? 'sales'
-  const usesCsv = page !== 'live' && page !== 'rules' && page !== 'play'
+  const isAnalytics = page === 'insights' || page === 'forecast'
+  const usesCsv = isAnalytics ? DEMO : page !== 'live' && page !== 'rules' && page !== 'play'
   const range =
     stats?.daily.length > 0
       ? `${formatThaiDate(stats.daily[0].date, SHORT_DATE)} – ${formatThaiDate(stats.daily.at(-1).date, SHORT_DATE)}`
@@ -341,6 +373,10 @@ function App() {
               ? 'ทดสอบ Security Rules'
               : page === 'play'
               ? 'ร้านจำลองสด · เล่นพร้อมเพื่อนได้'
+              : page === 'insights'
+              ? `ลูกค้าและเมนู · RFM, Cohort, ABC${DEMO ? ' (โหมดสาธิต)' : ''}`
+              : page === 'forecast'
+              ? `พยากรณ์ยอดขายและวันผิดปกติ${DEMO ? ' (โหมดสาธิต)' : ''}`
               : `${branch ? `สาขา${branch} · ` : 'ภาพรวมยอดขาย '}${range}`
           }
         />
@@ -365,6 +401,10 @@ function App() {
         )}
 
         {page === 'rules' && <CoursePanel><RulesTester /></CoursePanel>}
+
+        {isAnalytics && (!DEMO || rows) && (
+          <CoursePanel>{page === 'insights' ? <InsightsTab rows={rows} /> : <ForecastTab rows={rows} />}</CoursePanel>
+        )}
 
         {page === 'play' && (
           <Suspense fallback={<p className="text-muted">กำลังโหลด…</p>}>
