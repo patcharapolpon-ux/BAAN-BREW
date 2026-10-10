@@ -7,6 +7,8 @@ const PAGES = [
   { value: 'customers', label: 'ลูกค้า', hash: '#customers' },
   { value: 'lab2', label: 'Lab 2.2', hash: '#lab2' },
   { value: 'live', label: 'สด', hash: '#live' },
+  { value: 'insights', label: '📊 ลูกค้า & เมนู', hash: '#insights' },
+  { value: 'forecast', label: '📈 พยากรณ์', hash: '#forecast' },
   { value: 'rules', label: 'ทดสอบ Rules', hash: '#rules' },
   { value: 'play', label: '🎮 ร้านจำลอง', hash: '#play' },
 ]

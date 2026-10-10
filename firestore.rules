@@ -73,6 +73,14 @@ service cloud.firestore {
       }
     }
 
+    // Lab 4.2C · ผลวิเคราะห์ที่ pipeline คำนวณไว้ล่วงหน้า (meta, daily, rfm, cohort, abc)
+    // อ่านได้เมื่อล็อกอิน เพราะ rfm มีรหัสและยอดซื้อของลูกค้าแต่ละคน
+    // เขียนจากหน้าเว็บไม่ได้เลย: build-analytics.mjs ใช้ firebase-admin ซึ่งข้าม rules จึงยังเขียนได้
+    match /analytics/{docId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // ─── ร้านจำลอง (#play) · ของเล่น ไม่ใช่การบ้าน ───
     // ออเดอร์ปลอมจากบอท/ปุ่มกด แยกคอลเลกชันจาก sales ข้อมูลการบ้านจึงไม่ปน
     match /playground/{orderId} {
