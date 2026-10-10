@@ -61,6 +61,83 @@ function RfmCard({ rfm, onPick, picked }) {
   );
 }
 
+// ---------------- Lab 4.1B · รายชื่อลูกค้าในกลุ่มที่เลือก ----------------
+const CSV_COLUMNS = [
+  ["id", "รหัสลูกค้า"], ["R", "ไม่ได้มา (วัน)"], ["F", "จำนวนบิล"], ["M", "ยอดซื้อรวม (บาท)"],
+  ["r", "คะแนน R"], ["f", "คะแนน F"], ["m", "คะแนน M"], ["segment", "กลุ่ม"],
+];
+
+/** ดาวน์โหลดทั้งกลุ่มเป็น CSV · ใส่ BOM (\uFEFF) ไว้หน้าไฟล์ ไม่งั้น Excel เปิดภาษาไทยเป็นตัวเพี้ยน */
+function downloadCsv(list, segment, asOf) {
+  const cell = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v);
+  const lines = [
+    CSV_COLUMNS.map(([, th]) => th).join(","),
+    ...list.map((c) => CSV_COLUMNS.map(([k]) => cell(k === "M" ? Math.round(c.M) : c[k])).join(",")),
+  ];
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `rfm-${segment.replace(/\s+/g, "-")}-${asOf ?? "data"}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function SegmentCustomers({ rfm, segment, onClose }) {
+  // เรียงตามยอดซื้อรวมมากไปน้อย (คนที่มีมูลค่าสูงสุดควรได้รับการดูแลก่อน)
+  const list = rfm.customers.filter((c) => c.segment === segment).sort((a, b) => b.M - a.M);
+  const seg = SEG_TH[segment];
+  return (
+    <Card
+      title={`รายชื่อ${seg.th} (${segment})`}
+      sub={`${list.length.toLocaleString()} คน · เรียงตามยอดซื้อรวม แสดง ${Math.min(15, list.length)} คนแรก · ควรทำ: ${seg.action}`}
+      right={
+        <div className="flex gap-2">
+          <button onClick={() => downloadCsv(list, segment, rfm.asOf)} disabled={!list.length}
+                  className="rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40">
+            ⬇ ดาวน์โหลด CSV ({list.length.toLocaleString()} แถว)
+          </button>
+          <button onClick={onClose} aria-label="ปิดรายชื่อ"
+                  className="rounded-lg px-3 py-1.5 text-sm text-stone-600 ring-1 ring-stone-300 hover:bg-stone-100">
+            ✕ ปิด
+          </button>
+        </div>
+      }
+    >
+      {list.length === 0 ? (
+        <p className="text-sm text-stone-500">ไม่มีลูกค้าในกลุ่มนี้</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] text-sm">
+            <thead className="text-left text-stone-500">
+              <tr>
+                <th className="py-1 font-medium">#</th>
+                <th className="font-medium">รหัส</th>
+                <th className="text-right font-medium">ไม่ได้มา</th>
+                <th className="text-right font-medium">บิล</th>
+                <th className="text-right font-medium">ยอดซื้อ</th>
+                <th className="pl-4 text-center font-medium">R-F-M</th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.slice(0, 15).map((c, i) => (
+                <tr key={c.id} className="border-t border-stone-100">
+                  <td className="py-1.5 text-stone-400 tabular-nums">{i + 1}</td>
+                  <td className="font-mono">{c.id}</td>
+                  <td className="text-right tabular-nums">{c.R.toLocaleString()} วัน</td>
+                  <td className="text-right tabular-nums">{c.F.toLocaleString()}</td>
+                  <td className="text-right tabular-nums">{fmtBaht(c.M)}</td>
+                  <td className="pl-4 text-center font-mono tabular-nums">{c.r}-{c.f}-{c.m}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 // ---------------- Cohort ----------------
 function CohortCard({ cohort }) {
   if (cohort.error) return <Card title="Cohort · การกลับมาซื้อซ้ำ"><Pending lab="Lab 4.2" error={cohort.error} /></Card>;
@@ -159,7 +236,7 @@ export default function CustomersTab({ source }) {
       {(d) => (
         <div className="space-y-6">
           <RfmCard rfm={d.rfm} picked={picked} onPick={(s) => setPicked((p) => (p === s ? null : s))} />
-          {/* Lab 4.1B: แสดงรายชื่อลูกค้าในกลุ่มที่คลิก (picked) + ปุ่มดาวน์โหลด CSV */}
+          {picked && !d.rfm.error && <SegmentCustomers rfm={d.rfm} segment={picked} onClose={() => setPicked(null)} />}
           <CohortCard cohort={d.cohort} />
           <AbcCard abc={d.abc} />
         </div>
