@@ -87,13 +87,15 @@ function SegmentCustomers({ rfm, segment, onClose }) {
   // เรียงตามยอดซื้อรวมมากไปน้อย (คนที่มีมูลค่าสูงสุดควรได้รับการดูแลก่อน)
   const list = rfm.customers.filter((c) => c.segment === segment).sort((a, b) => b.M - a.M);
   const seg = SEG_TH[segment];
+  // PDPA: รหัสลูกค้าโยงถึงตัวบุคคลได้ จึงให้อ่านคำเตือนและกดยืนยันก่อนดาวน์โหลดทุกครั้ง
+  const [confirming, setConfirming] = useState(false);
   return (
     <Card
       title={`รายชื่อ${seg.th} (${segment})`}
       sub={`${list.length.toLocaleString()} คน · เรียงตามยอดซื้อรวม แสดง ${Math.min(15, list.length)} คนแรก · ควรทำ: ${seg.action}`}
       right={
         <div className="flex gap-2">
-          <button onClick={() => downloadCsv(list, segment, rfm.asOf)} disabled={!list.length}
+          <button onClick={() => setConfirming(true)} disabled={!list.length || confirming}
                   className="rounded-lg bg-stone-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-40">
             ⬇ ดาวน์โหลด CSV ({list.length.toLocaleString()} แถว)
           </button>
@@ -104,6 +106,33 @@ function SegmentCustomers({ rfm, segment, onClose }) {
         </div>
       }
     >
+      <p className="mb-3 text-xs text-stone-500">
+        🔒 ข้อมูลส่วนบุคคลของลูกค้า (PDPA) · ใช้เพื่อดูแลลูกค้าของร้านเท่านั้น
+      </p>
+      {confirming && (
+        <div role="alertdialog" aria-labelledby="pdpa-title"
+             className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+          <p id="pdpa-title" className="font-semibold">🔒 ยืนยันการดาวน์โหลดข้อมูลส่วนบุคคล</p>
+          <p className="mt-1">
+            ไฟล์นี้มีรหัสสมาชิกและประวัติการซื้อของลูกค้า {list.length.toLocaleString()} คน ซึ่งเป็นข้อมูลส่วนบุคคลตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล (PDPA)
+          </p>
+          <ul className="mt-2 list-disc space-y-0.5 pl-5">
+            <li>ใช้เพื่อการตลาดและดูแลลูกค้าของร้านบ้านบรูเท่านั้น</li>
+            <li>ห้ามส่งต่อหรือเผยแพร่ให้บุคคลภายนอก</li>
+            <li>เก็บไว้ในเครื่องที่ปลอดภัย และลบไฟล์เมื่อใช้งานเสร็จ</li>
+          </ul>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button onClick={() => { downloadCsv(list, segment, rfm.asOf); setConfirming(false); }}
+                    className="rounded-lg bg-amber-700 px-3 py-1.5 font-medium text-white hover:bg-amber-800">
+              ยืนยันและดาวน์โหลด
+            </button>
+            <button onClick={() => setConfirming(false)}
+                    className="rounded-lg px-3 py-1.5 text-amber-900 ring-1 ring-amber-300 hover:bg-amber-100">
+              ยกเลิก
+            </button>
+          </div>
+        </div>
+      )}
       {list.length === 0 ? (
         <p className="text-sm text-stone-500">ไม่มีลูกค้าในกลุ่มนี้</p>
       ) : (
@@ -236,7 +265,7 @@ export default function CustomersTab({ source }) {
       {(d) => (
         <div className="space-y-6">
           <RfmCard rfm={d.rfm} picked={picked} onPick={(s) => setPicked((p) => (p === s ? null : s))} />
-          {picked && !d.rfm.error && <SegmentCustomers rfm={d.rfm} segment={picked} onClose={() => setPicked(null)} />}
+          {picked && !d.rfm.error && <SegmentCustomers key={picked} rfm={d.rfm} segment={picked} onClose={() => setPicked(null)} />}
           <CohortCard cohort={d.cohort} />
           <AbcCard abc={d.abc} />
         </div>
